@@ -9,10 +9,11 @@ Install PLY package by using
 Give executing permission
 ```chmod u+x go.sh```
 
-To run lexer on test case use
+To run lexer on nth test case in tests/ use
 ```./go.sh #n```
 
 ### references
-https://gobyexample.com/
-https://ply.readthedocs.io/en/latest/ply.html
-https://go.dev/ref/spec
+- [Test cases](https://gobyexample.com/)
+- [PLY documentation](https://ply.readthedocs.io/en/latest/ply.html)
+- [Go documentation](https://go.dev/ref/spec)
+
