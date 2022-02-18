@@ -11,7 +11,7 @@ reserved = {
     'default'  : 'DEFAULT',
     'func'     : 'FUNC',
     'case'     : 'CASE',    
-    'go'       : 'GO',    
+    'goto'     : 'GOTO',    
     'struct'   : 'STRUCT',
     'else'     : 'ELSE',
     'package'  : 'PACKAGE',
@@ -22,8 +22,62 @@ reserved = {
     'for'      : 'FOR',
     'import'   : 'IMPORT',
     'struct'   : 'STRUCT',
-    'make' : 'MAKE'
+    'make'     : 'MAKE'
 }
+
+tokens_for_parser = list(reserved.values()) + [
+    'PLUS_EQ',
+    'MINUS_EQ',
+    'STAR_EQ',
+    'DIVIDE_EQ',
+    'MODULO_EQ',
+    'AMP_EQ',
+    'OR_EQ',
+    'CARET_EQ',
+    'EQ',
+    'EQ_EQ',
+    'NOT',
+    'NOT_EQ',
+    'LT_EQ',
+    'GT_EQ',
+    'LT',
+    'GT',
+    'AMP_AMP',
+    'OR_OR',
+    'PLUS_PLUS',
+    'MINUS_MINUS',
+    'LSQUARE',
+    'RSQUARE',
+    'LROUND',
+    'RROUND',
+    'LCURLY',
+    'RCURLY',
+    'COMMA',
+    'DOT',
+    'SEMICOLON',
+    'COLON',
+    'SINGLE_QUOTES',
+    'DOUBLE_QUOTES',
+    'INT_LIT',
+    'FLOAT_LIT',
+    'STRING_LIT',
+    'BOOL_LIT',
+    'NEWLINE',
+    'IDENTIFIER',
+    'DATA_TYPE',
+    'PLUS',
+    'MINUS',
+    'STAR',
+    'DIVIDE',
+    'MODULO',
+    'AMP',
+    'OR',
+    'CARET',
+    'AND_NOT',
+    'LSHIFT',   
+    'RSHIFT',
+    'ASSIGN'   
+]
 
 dec_digits = r'[0-9]+'
 hex_digits = r'[0-9a-fA-F]+'
@@ -34,59 +88,7 @@ float_lit = rf'{float_mantissa}{float_exp}?'
 
 class Lexer:
 
-    tokens = list(reserved.values()) + [
-        'PLUS_EQ',
-        'MINUS_EQ',
-        'STAR_EQ',
-        'DIVIDE_EQ',
-        'MODULO_EQ',
-        'AMP_EQ',
-        'OR_EQ',
-        'CARET_EQ',
-        'EQ',
-        'EQ_EQ',
-        'NOT',
-        'NOT_EQ',
-        'LT_EQ',
-        'GT_EQ',
-        'LT',
-        'GT',
-        'AMP_AMP',
-        'OR_OR',
-        'PLUS_PLUS',
-        'MINUS_MINUS',
-        'LSQUARE',
-        'RSQUARE',
-        'LROUND',
-        'RROUND',
-        'LCURLY',
-        'RCURLY',
-        'COMMA',
-        'DOT',
-        'SEMICOLON',
-        'COLON',
-        'SINGLE_QUOTES',
-        'DOUBLE_QUOTES',
-        'INT_LIT',
-        'FLOAT_LIT',
-        'STRING_LIT',
-        'BOOL_LIT',
-        'NEWLINE',
-        'IDENTIFIER',
-        'DATA_TYPE',
-        'PLUS',
-        'MINUS',
-        'STAR',
-        'DIVIDE',
-        'MODULO',
-        'AMP',
-        'OR',
-        'CARET',
-        'AND_NOT',
-        'LSHIFT',   
-        'RSHIFT',
-        'ASSIGN'   
-    ]
+    tokens = tokens_for_parser
 
     t_PLUS_PLUS = r'(\+\+)'
     t_MINUS_MINUS = r'(--)'
@@ -185,6 +187,8 @@ class Lexer:
         r'\n'
         self.line_no += 1
         self.last_newline = t.lexpos
+        #t.value = "\\n"
+        #return t
 
     def t_IDENTIFIER(self, t):
         r'[a-zA-Z_][a-zA-Z_0-9]*'
@@ -199,20 +203,22 @@ class Lexer:
     def build(self):
         self.lexer = lex.lex(object=self)
 
-    def input(self, data):
+    def input(self, data, show_lexer_output=False):
         self.lexer.input(data)
-        data = [["Token", "Lexeme", "Line#", "Column#"]]
+        table = [["Token", "Lexeme", "Line#", "Column#"]]
         while True :
             tok = self.lexer.token()
             if not tok :
                 break
-            data.append([tok.type, tok.value, self.line_no, tok.lexpos - self.last_newline])  
-        for row in data:
-            print("{: <15} {: <15} {: <8} {: >8}".format(*row))
+            table.append([tok.type, tok.value, self.line_no, tok.lexpos - self.last_newline])  
+        if(show_lexer_output):
+            for row in table:
+                print("{: <15} {: <15} {: <8} {: >8}".format(*row))
+        return table[1:]
 
 if __name__ == "__main__" :
     file = open(sys.argv[1], 'r')
     data = file.read()
     lexer = Lexer()
     lexer.build()
-    lexer.input(data)        
+    lexer.input(data, show_lexer_output=True)       
