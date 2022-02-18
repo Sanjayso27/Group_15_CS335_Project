@@ -16,4 +16,5 @@ To run lexer on nth test case in tests/ use
 - [Test cases](https://gobyexample.com/)
 - [PLY documentation](https://ply.readthedocs.io/en/latest/ply.html)
 - [Go documentation](https://go.dev/ref/spec)
+- [ANSI grammar](https://www.lysator.liu.se/c/ANSI-C-grammar-y.html)
 
