@@ -3,24 +3,17 @@ package main
 import "fmt"
 
 func main() {
+   /* local variable definition */
+   var a int = 10
 
-    var a [5]int
-    fmt.Println("emp:", a)
-
-    a[4] = 100
-    fmt.Println("set:", a)
-    fmt.Println("get:", a[4])
-
-    fmt.Println("len:", len(a))
-
-    b := [5]int{1, 2, 3, 4, 5}
-    fmt.Println("dcl:", b)
-
-    var twoD [2][3]int
-    for i := 0; i < 2; i++ {
-        for j := 0; j < 3; j++ {
-            twoD[i][j] = i + j
-        }
+   /* do loop execution */
+   LOOP: for a < 20 {
+      if a == 15 {
+         /* skip the iteration */
+         a = a + 1
+         goto LOOP
+      }
+      fmt.Printf("value of a: %d\n", a)
+      a++     
     }
-    fmt.Println("2d: ", twoD)
 }

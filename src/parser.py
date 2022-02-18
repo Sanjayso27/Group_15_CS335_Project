@@ -7,11 +7,25 @@ class Parser:
 
     tokens = tokens    
     
-    def __init__(self):
-        pass
+    def __init__(self, data):
+        lexer = Lexer()
+        lexer.build()
+        self.tokmap = lexer.get_map(data)
 
     def build(self):
         self.parser = yacc.yacc(module=self, start='start', method='LALR', debug=True)
+
+    def p_error(self, p):
+        if not p:
+            print("End of File!")
+            return
+        # Read ahead looking for a closing '}'
+        print(f"Found error at L : {self.tokmap[p.lexpos][0]}, C : {self.tokmap[p.lexpos][1]}")
+        while True:
+            tok = self.parser.token()             # Get the next token
+            if not tok or tok.type == 'RBRACE':
+                break
+        self.parser.restart()
 
     # top level source file
     def p_start(self, p):
@@ -123,7 +137,9 @@ class Parser:
                 | selection_stmt
                 | iteration_stmt
                 | jump_stmt
-                | label_stmt'''
+                | label_stmt
+                | expression_stmt
+                | expression'''
 
     def p_return_stmt(self, p):
         '''return_stmt : RETURN argument_expression_list
@@ -141,7 +157,8 @@ class Parser:
         '''
 
     def p_iteration_stmt(self, p):
-        ''' iteration_stmt  : FOR expression  block
+        ''' iteration_stmt  : FOR block
+                            | FOR expression  block
                             | FOR expression_stmt expression_stmt expression  block
         '''
 
@@ -201,8 +218,7 @@ class Parser:
                                 | postfix_expression DOT IDENTIFIER LROUND RROUND
                                 | postfix_expression DOT IDENTIFIER LROUND argument_expression_list RROUND
                                 | postfix_expression PLUS_PLUS
-                                | postfix_expression MINUS_MINUS'''
-                            
+                                | postfix_expression MINUS_MINUS'''                          
 
     def p_argument_expression_list(self, p):
         '''argument_expression_list : assignment_expression
@@ -283,7 +299,9 @@ class Parser:
                                 | MODULO_EQ
                                 | AMP_EQ
                                 | OR_EQ
-                                | CARET_EQ'''
+                                | CARET_EQ
+                                | EQ
+                                | ASSIGN'''
 
     def p_expression(self, p):
         '''expression   : assignment_expression'''
@@ -300,7 +318,6 @@ if __name__ == "__main__" :
     lexer_cls = Lexer()
     lexer_cls.build()
     lexer_cls.lexer.input(data)
-    parser_cls = Parser()
+    parser_cls = Parser(data)
     parser_cls.build()
-    result = parser_cls.parser.parse(data, lexer=lexer_cls.lexer)
-    print(result)
+    result = parser_cls.parser.parse(data, lexer=lexer_cls.lexer, tracking=True)

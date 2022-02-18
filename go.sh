@@ -1,2 +1,3 @@
 FILE="./tests/test$1.go"
-python3 src/lexer.py $FILE
+rm ./src/parsetab.py ./src/parser.out
+python3 src/parser.py $FILE

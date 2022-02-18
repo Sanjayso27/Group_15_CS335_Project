@@ -2,25 +2,23 @@ package main
 
 import "fmt"
 
-func fact(n int) int {
-    if n == 0 {
-        return 1
-    }
-    return n * fact(n-1)
+func zeroval(ival int) {
+    ival = 0
+}
+
+func zeroptr(iptr *int) {
+    *iptr = 0
 }
 
 func main() {
-    fmt.Println(fact(7))
+    var i := 1
+    fmt.Println("initial:", i)
 
-    var fib func(n int) int
+    zeroval(i)
+    fmt.Println("zeroval:", i)
 
-    fib = func(n int) int {
-        if n < 2 {
-            return n
-        }
+    zeroptr(&i)
+    fmt.Println("zeroptr:", i)
 
-        return fib(n-1) + fib(n-2)
-    }
-
-    fmt.Println(fib(7))
+    fmt.Println("pointer:", &i)
 }

@@ -2,36 +2,29 @@ package main
 
 import "fmt"
 
-type person struct {
-    name string
-    age  int
-}
-
-func newPerson(name string) *person {
-
-    p := person{name: name}
-    p.age = 42
-    return &p
-}
-
 func main() {
 
-    fmt.Println(person{"Bob", 20})
+    var i := 1
+    for i <= 3 {
+        fmt.Println(i)
+        i = i + 1
+    }
 
-    fmt.Println(person{name: "Alice", age: 30})
+    var j int
+    for j = 7; j <= 9; j++ {
+        fmt.Println(j)
+    }
 
-    fmt.Println(person{name: "Fred"})
+    
+    for {
+        fmt.Println("loop")
+        break
+    }
 
-    fmt.Println(&person{name: "Ann", age: 40})
-
-    fmt.Println(newPerson("Jon"))
-
-    s := person{name: "Sean", age: 50}
-    fmt.Println(s.name)
-
-    sp := &s
-    fmt.Println(sp.age)
-
-    sp.age = 51
-    fmt.Println(sp.age)
+    for n = 0; n <= 5; n++ {
+        if n%2 == 0 {
+            continue
+        }
+        fmt.Println(n)
+    }
 }

@@ -216,9 +216,19 @@ class Lexer:
                 print("{: <15} {: <15} {: <8} {: >8}".format(*row))
         return table[1:]
 
+    def get_map(self, data, show_lexer_output=False):
+        self.lexer.input(data)
+        tokdict = {}
+        while True :
+            tok = self.lexer.token()
+            if not tok :
+                break
+            tokdict[tok.lexpos] = (self.line_no, tok.lexpos - self.last_newline)
+        return tokdict
+
 if __name__ == "__main__" :
     file = open(sys.argv[1], 'r')
     data = file.read()
     lexer = Lexer()
     lexer.build()
-    lexer.input(data, show_lexer_output=True)       
+    lexer.input(data, show_lexer_output=True)

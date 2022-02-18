@@ -2,25 +2,22 @@ package main
 
 import "fmt"
 
-type rect struct {
-    width, height int
-}
-
-func (r *rect) area() int {
-    return r.width * r.height
-}
-
-func (r rect) perim() int {
-    return 2*r.width + 2*r.height
-}
-
 func main() {
-    r := rect{width: 10, height: 5}
 
-    fmt.Println("area: ", r.area())
-    fmt.Println("perim:", r.perim())
+    var a [5]int
+    fmt.Println("emp:", a)
 
-    rp := &r
-    fmt.Println("area: ", rp.area())
-    fmt.Println("perim:", rp.perim())
+    a[4] = 100
+    fmt.Println("set:", a)
+    fmt.Println("get:", a[4])
+
+    fmt.Println("len:", len(a))
+    
+    var twoD [2][3]int
+    for i := 0; i < 2; i++ {
+        for j := 0; j < 3; j++ {
+            twoD[i][j] = i + j
+        }
+    }
+    fmt.Println("2d: ", twoD)
 }
