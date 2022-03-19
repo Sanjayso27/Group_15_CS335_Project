@@ -1,0 +1,281 @@
+Type 	: TypeName
+		| TypeLit
+
+TypeName	: identifier
+
+TypeLit	: ArrayType 
+		| StructType 
+		| PointerType 
+	    | SliceType
+
+ArrayType : LSQUARE ArrayLength RSQUARE ElementType
+ArrayLength : Expression
+
+SliceType 	: LSQUARE RSQUARE ElementType
+
+ElementType : Type
+
+PointerType	: STAR BaseType
+BaseType	: Type
+
+StructType 	: STRUCT LCURLY  FieldDeclList RCURLY
+FieldDeclList 	: FieldDeclList FieldDecl SEMICOLON 
+				| FieldDecl SEMICOLON
+FieldDecl 	: IdentifierList Type
+
+
+Block	: LCURLY StatementList RCURLY
+		| LCURLY RCURLY
+
+StatementList 	: StatementList Statement
+				| Statement
+
+
+Declaration	: ConstDecl 
+			| TypeDecl 
+			| VarDecl
+
+TopLevelDecl	: Declaration 
+				| FunctionDecl 
+				| MethodDecl
+
+ConstDecl	:	CONST ConstSpec
+
+ConstSpec   :	IdentifierList EQ ExpressionList
+
+IdentifierList	: IdentifierList COMMA ID
+				| ID
+
+ExpressionList	: ExpressionList COMMA Expression
+				| Expression
+
+TypeDecl	: TYPE ID Type
+
+VarDecl	: VAR VarSpec
+VarSpec	: IdentifierList Type 
+		| IdentifierList Type EQ ExpressionList
+
+ShortVarDecl : IdentifierList ASSIGN ExpressionList
+
+FunctionDecl 	: FUNC FunctionName TypeParameters Signature FunctionBody
+				| FUNC FunctionName Signature FunctionBody
+				| FUNC FunctionName TypeParameters Signature
+				| FUNC FunctionName Signature
+
+FunctionName	: ID
+
+Signature      	: Parameters
+				| Parameters Result
+
+Parameters 	: LROUND ParameterList RROUND
+			| LROUND RROUND
+
+ParameterList	: ParameterList COMMA ParameterDecl 
+				| ParameterDecl
+
+ParameterDecl	: IdentifierList Type
+
+Result 	: Type
+
+FunctionBody	: Block
+
+MethodDecl	: FUNC Receiver MethodName Signature
+			| FUNC Receiver MethodName Signature FunctionBody
+
+Receiver	: LROUND ParameterDecl RROUND
+
+
+Operand : Literal 
+		| OperandName
+		| LROUND Expression RROUND
+
+Literal	: BasicLit 
+		| CompositeLit 
+
+BasicLit	: INT_LIT
+    		| FLOAT_LIT
+    		| STRING_LIT
+    		| BOOL_LIT
+    		| CHAR_LIT
+    		| NIL
+
+OperandName : ID 
+			| QualifiedIdent
+
+
+QualifiedIdent	: PackageName DOT ID
+PackageName : ID
+
+CompositeLit	: LiteralType LiteralValue
+
+LiteralType	: StructType 
+			| ArrayType 
+			| SliceType 
+			| TypeName
+
+LiteralValue 	: LCURLY RCURLY
+				| LCURLY ElementList RCURLY
+
+ElementList	: Element
+			| ElementList COMMA Element
+
+Element : Expression
+		| LiteralValue
+
+PrimaryExpr	: Operand 
+			| Conversion 
+			| PrimaryExpr Selector 
+			| PrimaryExpr Index 
+			| PrimaryExpr Slice 
+			| PrimaryExpr TypeAssertion 
+			| PrimaryExpr Arguments
+
+Selector	: DOT ID
+
+Conversion	: Type LROUND Expression RROUND
+
+Index	: LSQUARE Expression RSQUARE
+
+Arguments	: LROUND ExpressionList RROUND
+			| LROUND Type COMMA ExpressionList RROUND
+			| LROUND RROUND
+
+
+Expression 	: UnaryExpr 
+			| Expression binary_op Expression
+
+
+UnaryExpr  	: PrimaryExpr 
+			| unary_op UnaryExpr
+
+
+binary_op   : OR_OR 
+			| AMP_AMP 
+			| rel_op 
+			| add_op 
+			| mul_op .
+
+rel_op	: EQ_EQ 
+		| NOT_EQ 
+		| LT 
+		| LE 
+		| GT 
+		| GE
+
+add_op	: PLUS 
+		| MINUS
+		| OR 
+		| CARET
+
+mul_op	: STAR 
+		| DIVIDE
+		| MODULO
+		| LSHIFT
+		| RSHIFT
+		| AMP
+
+unary_op 	: PLUS
+			| MINUS
+			| NOT
+			| CARET 
+			| STAR
+			| AMP
+
+
+Statement 	: Declaration 
+			| LabeledStmt 
+			| SimpleStmt 
+			| ReturnStmt 
+			| BreakStmt 
+			| ContinueStmt 
+			| GotoStmt
+			| Block 
+			| IfStmt 
+			| ForStmt
+
+SimpleStmt	: EmptyStmt 
+			| ExpressionStmt
+			| IncDecStmt 
+			| Assignment 
+			| ShortVarDecl
+
+EmptyStmt	: 
+
+ExpressionStmt 	: Expression
+			
+LabeledStmt	: Label COLON Statement
+
+IncDecStmt 	: Expression PLUS_PLUS
+			| Expression MINUS_MINUS
+
+Assignment	: ExpressionList assign_op ExpressionList
+
+assign_op	: PLUS_EQ
+			| MINUS_EQ
+			| STAR_EQ
+			| DIVIDE_EQ
+    		| MODULO_EQ
+    		| AMP_EQ
+    		| OR_EQ
+    		| CARET_EQ
+    		| EQ
+
+ForStmt : ForLoop Block
+		| WhileLoop Block
+
+ForLoop	: FOR InitStmt SEMICOLON Condition SEMICOLON PostStmt
+		| FOR InitStmt SEMICOLON Condition SEMICOLON
+		| FOR InitStmt SEMICOLON SEMICOLON PostStmt
+		| FOR InitStmt SEMICOLON SEMICOLON
+		| FOR SEMICOLON Condition SEMICOLON PostStmt
+		| FOR SEMICOLON Condition SEMICOLON
+		| FOR SEMICOLON SEMICOLON PostStmt
+		| FOR SEMICOLON SEMICOLON 
+
+WhileLoop	: FOR Condition Block
+			| FOR Block 
+
+InitStmt	: SimpleStmt
+
+PostStmt	: SimpleStmt
+
+Condition 	: Expression
+
+ReturnStmt	: RETURN
+			| ExpressionList
+
+BreakStmt	: BREAK 
+			| BREAK Label
+
+ContinueStmt 	: CONTINUE Label
+
+GotoStmt	: GOTO Label
+
+IfStmt 	: IF SimpleStmt Expression Block
+		| IF Expression Block
+
+ElseStmt	: ELSE IfStmt
+			| ELSE Block
+
+SourceFile	: PackageClause ImportDeclList TopLevelDeclList
+			| PackageClause ImportDeclList
+			| PackageClause TopLevelDeclList
+			| PackageClause
+
+
+ImportDeclList	: ImportDeclList ImportDecl SEMICOLON
+				| ImportDecl SEMICOLON
+
+ImportDecl 	: IMPORT ImportPath
+
+ImportPath	: STRING_LIT
+
+TopLevelDeclList	: TopLevelDeclList TopLevelDecl
+					| TopLevelDecl
+
+
+
+
+
+
+

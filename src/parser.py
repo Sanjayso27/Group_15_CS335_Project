@@ -1,26 +1,27 @@
 import sys
-from lexer import Lexer
-from lexer import tokens_for_parser as tokens
+from lexer import LexerGo
+from lexer import tokens
 import ply.yacc as yacc
+from helper import print_error, print_warn
 
-class Parser:
-
+class ParserGo:
     tokens = tokens    
     
     def __init__(self, data):
-        lexer = Lexer()
-        lexer.build()
-        self.tokmap = lexer.get_map(data)
+        self.lexer = LexerGo()
+        self.lexer.build()
+        self.lexer.input(data)
 
     def build(self):
         self.parser = yacc.yacc(module=self, start='start', method='LALR', debug=True)
 
     def p_error(self, p):
+        print(self.lexer.tokenList)
         if not p:
             print("End of File!")
             return
         # Read ahead looking for a closing '}'
-        print(f"Found error at L : {self.tokmap[p.lexpos][0]}, C : {self.tokmap[p.lexpos][1]}")
+        print(f"Found error at L : {self.lexer.tokenList[p.lexpos][0]}, C : {self.lexer.tokenList[p.lexpos][1]}")
         while True:
             tok = self.parser.token()             # Get the next token
             if not tok or tok.type == 'RBRACE':
@@ -41,9 +42,6 @@ class Parser:
         '''top_lvl_stmt_list    : top_lvl_stmt
                                 | top_lvl_stmt top_lvl_stmt_list   
         '''
-        p[0] = [p[1]]
-        if len(p)==3 :
-            p[0] = p[0] + p[2]
 
     def p_top_lvl_stmt(self, p):
         '''top_lvl_stmt : imp_stmt
@@ -51,28 +49,19 @@ class Parser:
                         | var_decl
                         | func_decl
                         | method_decl
-        '''                
-        p[0] = p[1]
+        '''
+
 
     # IMPORT HANDLING #
     def p_imp_list(self, p):
         '''imp_list : STRING_LIT imp_list
                     | STRING_LIT
         '''
-        p[0] = [p[1]]
-        if len(p)==3 :
-            p[0] = p[0] + p[2]
 
     def p_imp_stmt(self, p):
         '''imp_stmt : IMPORT STRING_LIT
                     | IMPORT LROUND imp_list RROUND
         '''
-        p[0] = [p[1]]
-        if len(p) == 5 :
-            p[0] = p[0] + [p[3]]
-        else :
-            p[0] = p[0] + [p[2]]
-
 
     # TYPE HANDLING #
     def p_arr_type(self, p):
@@ -90,11 +79,15 @@ class Parser:
                     | STAR DATA_TYPE
         '''
 
+    def p_struct_type(self, p):
+        '''struct_type : IDENTIFIER'''
+
     def p_type(self, p):
         '''type : DATA_TYPE
                 | arr_type
                 | slc_type
                 | ptr_type
+                | struct_type
         '''
 
     # VAR and CONST DECLARATIONS #
@@ -138,8 +131,7 @@ class Parser:
                 | iteration_stmt
                 | jump_stmt
                 | label_stmt
-                | expression_stmt
-                | expression'''
+                | expression_stmt'''
 
     def p_return_stmt(self, p):
         '''return_stmt : RETURN argument_expression_list
@@ -207,7 +199,7 @@ class Parser:
     def p_primary_expression(self, p):
         '''primary_expression   : IDENTIFIER
                                 | lit_operand
-                                | LROUND expression RROUND'''
+                                | LROUND logical_or_expression RROUND'''
 
     def p_postfix_expression(self, p):
         '''postfix_expression   : primary_expression
@@ -310,14 +302,14 @@ class Parser:
         '''lit_operand  : INT_LIT
                         | FLOAT_LIT
                         | STRING_LIT
-                        | BOOL_LIT'''
+                        | BOOL_LIT
+                        | CHAR_LIT
+                        | NIL'''
 
 if __name__ == "__main__" :
     file = open(sys.argv[1], 'r')
     data = file.read()
-    lexer_cls = Lexer()
-    lexer_cls.build()
-    lexer_cls.lexer.input(data)
-    parser_cls = Parser(data)
-    parser_cls.build()
-    result = parser_cls.parser.parse(data, lexer=lexer_cls.lexer, tracking=True)
+    parser = ParserGo(data)
+    parser.build()
+    result = parser.parser.parse(data, lexer=parser.lexer.lexer, tracking=True)
+    print(result)
