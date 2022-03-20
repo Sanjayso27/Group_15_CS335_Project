@@ -208,7 +208,7 @@ class LexerGo:
             return t
 
     def t_SINGLE_LINE_COMMENT(self, t):
-        r"//[^\n]*\n"
+        r"//[^\n]*(\n|$)"
         self.line_no += 1
         self.last_newline = t.lexpos + len(t.value) - 1
         pass

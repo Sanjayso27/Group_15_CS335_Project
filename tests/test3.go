@@ -1,30 +1,25 @@
-package main
+for n := 0; n <= 5; n++{
 
-import "fmt"
-
-func main() {
-
-    var i := 1
+    var i int;
     for i <= 3 {
-        fmt.Println(i)
-        i = i + 1
+        //fmt.Println(i)
+        i = i + 1;
     }
 
-    var j int
-    for j = 7; j <= 9; j++ {
-        fmt.Println(j)
-    }
+    j:=1;
+    // for j := 7; j <= 9; j++ {
+    //     j += 1;
+    //     //fmt.Println(j)
+    // }
 
     
-    for {
-        fmt.Println("loop")
-        break
-    }
-
-    for n = 0; n <= 5; n++ {
-        if n%2 == 0 {
-            continue
-        }
-        fmt.Println(n)
-    }
+    // for {
+    //     //fmt.Println("loop")
+    //     break;
+    // }
+    // for n := 0; n <= 5; n++ {
+    //     if n%2 == 0 {
+    //         continue;
+    //     }
+    // }
 }

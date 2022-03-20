@@ -15,14 +15,18 @@ func (r rect) perim() int {
 }
 
 func main() {
-    r := rect{width: 10, height: 5};
+    //r := rect{10, 5};
     b := r.width + r.perim();
     i := 2;
+    var i, j int = i, 3;
     if i>0 {
         i++;
     }
-    for i > 0 {
+
+    i, j := i+j, 3+2;
+    for i,j := 2,1; i > 0; i-- {
         i--;
+        j--;
         fmt.Println(b);
     }
     fmt.Println("area: ", r.area());

@@ -3,6 +3,8 @@ from lexer import LexerGo
 from lexer import tokens
 import ply.yacc as yacc
 from helper import print_error, print_warn
+# import logging
+# log = logging.getLogger('ply')
 
 class ParserGo:
     tokens = tokens
@@ -21,6 +23,12 @@ class ParserGo:
 
     def build(self):
         self.parser = yacc.yacc(module=self, start='SourceFile', method='LALR', debug=True)
+
+    def p_error(self, p):
+        if p is not  None :
+            msg = f"Unexpexted {p.value} found"
+
+            print_error(msg, self.lexer.tokenList[p.lexpos][2], self.lexer.tokenList[p.lexpos][3])
 
     def p_lcurly(self, p):
         '''
@@ -105,15 +113,15 @@ class ParserGo:
     
     def p_StatementList(self, p):
         '''
-        StatementList 	: StatementList Statement SEMICOLON
-                        | Statement SEMICOLON
+        StatementList 	: StatementList Statement
+                        | Statement
         '''
 
     def p_Declaration(self, p):
         '''
-        Declaration	: ConstDecl SEMICOLON 
-                    | TypeDecl SEMICOLON
-                    | VarDecl SEMICOLON
+        Declaration	: ConstDecl 
+                    | TypeDecl 
+                    | VarDecl 
         '''
     
     def p_TopLevelDecl(self, p):
@@ -125,7 +133,7 @@ class ParserGo:
 
     def p_ConstDecl(self, p):
         '''
-        ConstDecl	:	CONST ConstSpec
+        ConstDecl	:	CONST ConstSpec SEMICOLON
         '''
 
     def p_ConstSpec(self, p):
@@ -147,12 +155,12 @@ class ParserGo:
     
     def p_TypeDecl(self, p):
         '''
-        TypeDecl	: TYPE ID Type
+        TypeDecl	: TYPE ID Type SEMICOLON
         '''
 
     def p_VarDecl(self, p):
         '''
-        VarDecl	: VAR VarSpec
+        VarDecl	: VAR VarSpec SEMICOLON
         '''
     
     def p_VarSpec(self, p):
@@ -163,7 +171,7 @@ class ParserGo:
     
     def p_ShortVarDecl(self, p):
         '''
-        ShortVarDecl : IdentifierList ASSIGN ExpressionList SEMICOLON
+        ShortVarDecl : IdentifierList ASSIGN ExpressionList
         '''
     
     def p_FunctionDecl(self, p):
@@ -236,9 +244,8 @@ class ParserGo:
     def p_Literal(self, p):
         '''
         Literal	: BasicLit 
-                | CompositeLit 
+                | CompositeLit
         '''
-        # 
     
     def p_BasicLit(self, p):
         '''
@@ -254,17 +261,6 @@ class ParserGo:
         '''
         OperandName : ID 
         '''
-        #| QualifiedIndent
-
-    # def p_QualifiedIndent(self, p):
-    #     '''
-    #     QualifiedIndent	: PackageName DOT ID
-    #     '''
-    
-    # def p_PackageName(self, p):
-    #     '''
-    #     PackageName : ID
-    #     '''
 
     def p_CompositeLit(self, p):
         '''
@@ -273,11 +269,12 @@ class ParserGo:
     
     def p_LiteralType(self, p):
         '''
-        LiteralType	: StructType 
-                    | ArrayType 
-                    | SliceType 
-                    | ID
-        '''
+        LiteralType	: ArrayType 
+                    | SliceType
+                    | StructType
+        ''' 
+        #             
+        # '''
         # Incase of ID check if typedef
     
     def p_LiteralValue(self, p):
@@ -304,6 +301,14 @@ class ParserGo:
                     | PrimaryExpr Selector 
                     | PrimaryExpr Index 
                     | PrimaryExpr Arguments
+                    | MakeExpr
+        '''
+    
+    def p_MakeExpr(self, p):
+        '''
+        MakeExpr    : MAKE LROUND SliceType COMMA Expression COMMA Expression RROUND
+                    | MAKE LROUND SliceType COMMA Expression RROUND
+
         '''
         # | Conversion 
     
@@ -415,7 +420,7 @@ class ParserGo:
                     | IfStmt 
                     | ForStmt
                     | SimpleStmt SEMICOLON
-
+                    | SEMICOLON
         '''
     
     def p_SimpleStmt(self, p):
@@ -425,13 +430,7 @@ class ParserGo:
                     | Assignment 
                     | ShortVarDecl
         '''
-        #  | EmptyStmt
         
-    # def p_EmptyStmt(self, p):
-    #     '''
-    #     EmptyStmt	: BR
-    #                 | SEMICOLON
-    #     '''
     def p_ExpressionStmt(self, p):
         '''
         ExpressionStmt 	: Expression
