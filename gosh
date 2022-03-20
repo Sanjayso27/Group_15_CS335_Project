@@ -1,4 +1,4 @@
 #!/bin/bash
 FILE="./tests/test$1.go"
-rm ./src/parsetab.py ./src/parser.out
-python3 src/parser1.py $FILE
+python3 src/parser.py $FILE
+rm ./src/parsetab.py #./src/parser.out

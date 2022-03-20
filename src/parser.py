@@ -3,308 +3,545 @@ from lexer import LexerGo
 from lexer import tokens
 import ply.yacc as yacc
 from helper import print_error, print_warn
+# import logging
+# log = logging.getLogger('ply')
 
 class ParserGo:
-    tokens = tokens    
-    
+
     def __init__(self, data):
         self.lexer = LexerGo()
         self.lexer.build()
         self.lexer.input(data)
+        self.tokens = tokens
+        self.precedence = (
+            ('left', 'OR_OR'),
+            ('left', 'AMP_AMP'),
+            ('left', 'EQ_EQ', 'NOT_EQ', 'LT', 'LE', 'GT', 'GE'),
+            ('left', 'PLUS', 'MINUS', 'OR', 'CARET'),
+            ('left', 'STAR', 'DIVIDE', 'MODULO', 'LSHIFT', 'RSHIFT', 'AMP')
+        )
 
     def build(self):
-        self.parser = yacc.yacc(module=self, start='start', method='LALR', debug=True)
+        self.parser = yacc.yacc(module=self, start='SourceFile', method='LALR', debug=False)
 
     def p_error(self, p):
-        print(self.lexer.tokenList)
-        if not p:
-            print("End of File!")
-            return
-        # Read ahead looking for a closing '}'
-        print(f"Found error at L : {self.lexer.tokenList[p.lexpos][0]}, C : {self.lexer.tokenList[p.lexpos][1]}")
-        while True:
-            tok = self.parser.token()             # Get the next token
-            if not tok or tok.type == 'RBRACE':
-                break
-        self.parser.restart()
+        if p is not  None :
+            msg = f"Found unexpexted token {p.value}"
+            print_error(msg, self.lexer.tokenList[p.lexpos][2], self.lexer.tokenList[p.lexpos][3])
 
-    # top level source file
-    def p_start(self, p):
-        '''start : pkg_stmt top_lvl_stmt_list
+    def p_lcurly(self, p):
         '''
-        p[0] = [p[1], p[2]]
-
-    def p_pkg_stmt(self, p):
-        '''pkg_stmt : PACKAGE IDENTIFIER'''
-        p[0] = [p[1], p[2]]
-
-    def p_top_lvl_stmt_list(self, p):
-        '''top_lvl_stmt_list    : top_lvl_stmt
-                                | top_lvl_stmt top_lvl_stmt_list   
+        lcurly  : LCURLY
+        '''
+    
+    def p_rcurly(self, p):
+        '''
+        rcurly  : RCURLY
         '''
 
-    def p_top_lvl_stmt(self, p):
-        '''top_lvl_stmt : imp_stmt
-                        | struct_decl
-                        | var_decl
-                        | func_decl
-                        | method_decl
+    def p_Type(self, p):
+        '''
+        Type    : TypeName
+                | TypeLit
         '''
 
+    def p_TypeName(self, p):
+        '''
+        TypeName	: ID
+                    | DATA_TYPE
+        '''
 
-    # IMPORT HANDLING #
-    def p_imp_list(self, p):
-        '''imp_list : STRING_LIT imp_list
+    def p_TypeLit(self, p):
+        '''
+        TypeLit	: ArrayType 
+                | StructType 
+                | PointerType 
+                | SliceType
+        '''
+        
+    def p_ArrayType(self, p):
+        '''
+        ArrayType : LSQUARE ArrayLength RSQUARE ElementType
+        '''
+
+    def p_ArrayLength(self, p):
+        '''
+        ArrayLength : Expression
+        '''
+    
+    def p_SliceType(self, p):
+        '''
+        SliceType 	: LSQUARE RSQUARE ElementType
+        '''
+    
+    def p_ElementType(self, p):
+        '''
+        ElementType : Type
+        '''
+    
+    def p_PointerType(self, p):
+        '''
+        PointerType	: STAR BaseType
+        '''
+    
+    def p_BaseType(self, p):
+        '''
+        BaseType	: Type
+        '''
+    
+    def p_StructType(self, p):
+        '''
+        StructType 	: STRUCT lcurly FieldDeclList rcurly
+        '''
+    
+    def p_FieldDeclList(self, p):
+        '''
+        FieldDeclList 	: FieldDeclList FieldDecl SEMICOLON 
+                        | FieldDecl SEMICOLON
+        '''
+    
+    def p_FieldDecl(self, p):
+        '''
+        FieldDecl 	: IdentifierList Type
+        '''
+    
+    def p_Block(self, p):
+        '''
+        Block	: lcurly StatementList rcurly
+                | lcurly rcurly
+        '''
+    
+    def p_StatementList(self, p):
+        '''
+        StatementList 	: StatementList Statement
+                        | Statement
+        '''
+
+    def p_Declaration(self, p):
+        '''
+        Declaration	: ConstDecl 
+                    | TypeDecl 
+                    | VarDecl 
+        '''
+    
+    def p_TopLevelDecl(self, p):
+        '''
+        TopLevelDecl	: Declaration 
+                        | FunctionDecl 
+                        | MethodDecl
+        '''
+
+    def p_ConstDecl(self, p):
+        '''
+        ConstDecl	:	CONST ConstSpec SEMICOLON
+        '''
+
+    def p_ConstSpec(self, p):
+        '''
+        ConstSpec   :	IdentifierList EQ ExpressionList
+        '''
+
+    def p_IdentifierList(self, p):
+        '''
+        IdentifierList	: IdentifierList COMMA ID
+                        | ID
+        '''
+
+    def p_ExpressionList(self, p):
+        '''
+        ExpressionList	: ExpressionList COMMA Expression
+                        | Expression
+        '''
+    
+    def p_TypeDecl(self, p):
+        '''
+        TypeDecl	: TYPE ID Type SEMICOLON
+        '''
+
+    def p_VarDecl(self, p):
+        '''
+        VarDecl	: VAR VarSpec SEMICOLON
+        '''
+    
+    def p_VarSpec(self, p):
+        '''
+        VarSpec	: IdentifierList Type 
+                | IdentifierList Type EQ ExpressionList
+        '''
+    
+    def p_ShortVarDecl(self, p):
+        '''
+        ShortVarDecl : IdentifierList ASSIGN ExpressionList
+        '''
+    
+    def p_FunctionDecl(self, p):
+        '''
+        FunctionDecl 	: FUNC FunctionName Signature FunctionBody
+                        | FUNC FunctionName Signature SEMICOLON
+        '''
+    
+    def p_FunctionName(self, p):
+        '''
+        FunctionName	: ID
+        '''
+    
+    def p_Signature(self, p):
+        '''
+        Signature      	: Parameters
+                        | Parameters Result
+        '''
+    
+    def p_Parameters(self, p):
+        '''
+        Parameters 	: LROUND ParameterList RROUND
+                    | LROUND RROUND
+        '''
+    
+    def p_ParameterList(self, p):
+        '''
+        ParameterList	: ParameterList COMMA ParameterDecl 
+                        | ParameterDecl
+        '''
+    
+    def p_ParameterDecl(self, p):
+        '''
+        ParameterDecl	: IdentifierList Type
+        '''
+    
+    def p_Result(self, p):
+        '''
+        Result 	: Type
+        '''
+
+    def p_FunctionBody(self, p):
+        '''
+        FunctionBody	: Block
+        '''
+    
+    def p_MethodDecl(self, p):
+        '''
+        MethodDecl	: FUNC Receiver MethodName Signature
+                    | FUNC Receiver MethodName Signature FunctionBody
+        '''
+
+    def p_MethodName(self, p):
+        '''
+        MethodName  : ID
+        '''
+
+    def p_Receiver(self, p):
+        '''
+        Receiver	: LROUND ParameterDecl RROUND
+        '''
+
+    def p_Operand(self, p):
+        '''
+        Operand : Literal 
+                | OperandName
+                | LROUND Expression RROUND
+        '''
+
+    def p_Literal(self, p):
+        '''
+        Literal	: BasicLit 
+                | CompositeLit
+        '''
+    
+    def p_BasicLit(self, p):
+        '''
+        BasicLit	: INT_LIT
+                    | FLOAT_LIT
                     | STRING_LIT
-        '''
-
-    def p_imp_stmt(self, p):
-        '''imp_stmt : IMPORT STRING_LIT
-                    | IMPORT LROUND imp_list RROUND
-        '''
-
-    # TYPE HANDLING #
-    def p_arr_type(self, p):
-        '''arr_type : LSQUARE INT_LIT RSQUARE arr_type
-                    | LSQUARE INT_LIT RSQUARE DATA_TYPE
-        '''
-
-    def p_slc_type(self, p):
-        '''slc_type : LSQUARE RSQUARE slc_type
-                    | LSQUARE RSQUARE DATA_TYPE
-        '''
-
-    def p_ptr_type(self, p):
-        '''ptr_type : STAR ptr_type
-                    | STAR DATA_TYPE
-        '''
-
-    def p_struct_type(self, p):
-        '''struct_type : IDENTIFIER'''
-
-    def p_type(self, p):
-        '''type : DATA_TYPE
-                | arr_type
-                | slc_type
-                | ptr_type
-                | struct_type
-        '''
-
-    # VAR and CONST DECLARATIONS #
-    def p_var_decl(self, p):
-        '''var_decl : VAR IDENTIFIER type
-                    | VAR IDENTIFIER type EQ expression
-                    | VAR IDENTIFIER ASSIGN expression
-                    | CONST IDENTIFIER type EQ expression
-                    | CONST IDENTIFIER ASSIGN expression
-        '''
-
-    # STRUCT DECLARATIONS
-    def p_struct_decl(self, p):
-        '''struct_decl  : TYPE IDENTIFIER STRUCT LCURLY var_decl_list RCURLY
-        '''
-        p[0] = [p[1], p[2], p[3], p[5]]
-    
-    def p_var_decl_list(self, p):
-        '''var_decl_list    : IDENTIFIER type var_decl_list
-                            | IDENTIFIER type
-        '''
-        p[0] = [[p[1], p[2]]]
-        if len(p) == 4 :
-            p[0] = p[0] + p[3]
-
-    # BLOCK         
-    def p_block(self, p):
-        '''block : LCURLY stmt_list RCURLY
-        '''
-
-    def p_stmt_list(self, p):
-        '''stmt_list    : stmt stmt_list
-                        | stmt
-        '''
-
-    def p_stmt(self, p):
-        '''stmt : var_decl
-                | return_stmt
-                | block
-                | selection_stmt
-                | iteration_stmt
-                | jump_stmt
-                | label_stmt
-                | expression_stmt'''
-
-    def p_return_stmt(self, p):
-        '''return_stmt : RETURN argument_expression_list
-        '''
-
-    def p_expression_stmt(self, p):
-        ''' expression_stmt : SEMICOLON
-                            | expression SEMICOLON
-        '''
-
-    def p_selection_stmt(self, p):
-        ''' selection_stmt  : IF expression  block
-                            | IF expression  block ELSE block
-                            | IF expression  block ELSE selection_stmt
-        '''
-
-    def p_iteration_stmt(self, p):
-        ''' iteration_stmt  : FOR block
-                            | FOR expression  block
-                            | FOR expression_stmt expression_stmt expression  block
-        '''
-
-    def p_jump_stmt(self, p):
-        '''jump_stmt    : CONTINUE
-                        | BREAK
-                        | GOTO IDENTIFIER
-        '''
-
-    def p_label_stmt(self, p):
-        '''label_stmt   : IDENTIFIER COLON stmt
-        '''
-
-    # FUNCTIONS
-    def p_func_decl(self, p):
-        '''func_decl    : FUNC IDENTIFIER signature block
-                        | FUNC IDENTIFIER signature'''
-
-    def p_signature(self, p):
-        '''signature    : params result
-                        | params '''
-    
-    def p_params(self, p):
-        '''params   : LROUND param_list RROUND
-                    | LROUND RROUND'''
-
-    def p_param_list(self, p):
-        '''param_list   : type
-                        | identifier_list type
-                        | param_list COMMA identifier_list type 
+                    | BOOL_LIT
+                    | CHAR_LIT
+                    | NIL
         '''
     
-    def p_identifier_list(self, p):
-        '''identifier_list  : IDENTIFIER
-                            | identifier_list COMMA IDENTIFIER'''
-    
-    def p_result(self, p):
-        '''result : type'''     # TODO add typelist
-
-    # METHOD
-    def p_method(self, p):
-        '''method_decl  : FUNC LROUND IDENTIFIER type RROUND IDENTIFIER signature
-                        | FUNC LROUND IDENTIFIER type RROUND IDENTIFIER signature block
+    def p_OperandName(self, p):
+        '''
+        OperandName : ID 
         '''
 
-    def p_primary_expression(self, p):
-        '''primary_expression   : IDENTIFIER
-                                | lit_operand
-                                | LROUND logical_or_expression RROUND'''
+    def p_CompositeLit(self, p):
+        '''
+        CompositeLit	: LiteralType LiteralValue
+        '''
+    
+    def p_LiteralType(self, p):
+        '''
+        LiteralType	: ArrayType 
+                    | SliceType
+                    | StructType
+        ''' 
+        # Reducing power of rule No defined types will form composite literal
+    
+    def p_LiteralValue(self, p):
+        '''
+        LiteralValue 	: lcurly rcurly
+                        | lcurly ElementList rcurly
+        '''
+    
+    def p_ElementList(self, p):
+        '''
+        ElementList	: Element
+                    | ElementList COMMA Element
+        '''
+    
+    def p_Element(self, p):
+        '''
+        Element : Expression
+                | LiteralValue
+        '''
+    
+    def p_PrimaryExpr(self, p):
+        '''
+        PrimaryExpr	: Operand 
+                    | PrimaryExpr Selector 
+                    | PrimaryExpr Index 
+                    | PrimaryExpr Arguments
+                    | MakeExpr
+        '''
+    
+    def p_MakeExpr(self, p):
+        '''
+        MakeExpr    : MAKE LROUND SliceType COMMA Expression COMMA Expression RROUND
+                    | MAKE LROUND SliceType COMMA Expression RROUND
 
-    def p_postfix_expression(self, p):
-        '''postfix_expression   : primary_expression
-                                | postfix_expression LSQUARE expression RSQUARE
-                                | postfix_expression LROUND RROUND
-                                | postfix_expression LROUND argument_expression_list RROUND
-                                | postfix_expression DOT IDENTIFIER 
-                                | postfix_expression DOT IDENTIFIER LROUND RROUND
-                                | postfix_expression DOT IDENTIFIER LROUND argument_expression_list RROUND
-                                | postfix_expression PLUS_PLUS
-                                | postfix_expression MINUS_MINUS'''                          
+        '''
+        # | Conversion 
+    
+    def p_Selector(self, p):
+        '''
+        Selector	: DOT ID
+        '''
+    
+    # def p_Conversion(self, p):
+    #     '''
+    #     Conversion	: Type LROUND Expression RROUND
+    #     '''
+    
+    def p_Index(self, p):
+        '''
+        Index	: LSQUARE Expression RSQUARE
+        '''
+    
+    def p_Arguments(self, p):
+        '''
+        Arguments	: LROUND ExpressionList RROUND
+                    | LROUND RROUND
+        '''
 
-    def p_argument_expression_list(self, p):
-        '''argument_expression_list : assignment_expression
-                                    | argument_expression_list COMMA assignment_expression'''
-	
-    def p_unary_expression(self, p):
-        '''unary_expression : postfix_expression
-                            | PLUS_PLUS postfix_expression
-                            | MINUS_MINUS postfix_expression
-                            | unary_operator postfix_expression'''
+    def p_Expression(self, p):
+        '''
+        Expression 	: UnaryExpr 
+                    | Expression OR_OR Expression
+                    | Expression AMP_AMP Expression
+                    | Expression EQ_EQ Expression
+                    | Expression NOT_EQ Expression
+                    | Expression LT Expression
+                    | Expression LE Expression
+                    | Expression GT Expression
+                    | Expression GE Expression
+                    | Expression PLUS Expression
+                    | Expression MINUS Expression
+                    | Expression OR Expression
+                    | Expression CARET Expression
+                    | Expression STAR Expression
+                    | Expression DIVIDE Expression
+                    | Expression MODULO Expression
+                    | Expression LSHIFT Expression
+                    | Expression RSHIFT Expression
+                    | Expression AMP Expression
+        '''
 
-    def p_unary_operator(self, p):
-        '''unary_operator   : AMP
-                            | STAR
-                            | PLUS
-                            | MINUS
-                            | NOT'''
+    def p_UnaryExpr(self, p):
+        '''
+        UnaryExpr  	: PrimaryExpr 
+                    | unary_op UnaryExpr
+        '''
+        
+    def p_unary_op(self, p):
+        '''
+        unary_op 	: PLUS
+                    | MINUS
+                    | NOT
+                    | CARET 
+                    | STAR
+                    | AMP
+        '''
+    
+    def p_Statement(self, p):
+        '''
+        Statement 	: Declaration 
+                    | LabeledStmt  
+                    | ReturnStmt 
+                    | BreakStmt 
+                    | ContinueStmt 
+                    | GotoStmt
+                    | Block 
+                    | IfStmt 
+                    | ForStmt
+                    | SimpleStmt SEMICOLON
+                    | SEMICOLON
+        '''
+    
+    def p_SimpleStmt(self, p):
+        '''
+        SimpleStmt	: ExpressionStmt
+                    | IncDecStmt 
+                    | Assignment 
+                    | ShortVarDecl
+        '''
+        
+    def p_ExpressionStmt(self, p):
+        '''
+        ExpressionStmt 	: Expression
+        '''
 
-    def p_multiplicative_expression(self, p):
-        '''multiplicative_expression    : unary_expression
-                                        | multiplicative_expression STAR unary_expression
-                                        | multiplicative_expression DIVIDE unary_expression
-                                        | multiplicative_expression MODULO unary_expression'''
+    def p_LabeledStmt(self, p):
+        '''         
+        LabeledStmt	: Label COLON Statement
+        '''
 
-    def p_additive_expression(self, p):
-        '''additive_expression  : multiplicative_expression
-                                | additive_expression PLUS multiplicative_expression
-                                | additive_expression MINUS multiplicative_expression'''
+    def p_Label(self, p):
+        '''
+        Label   : ID
+        '''
+    
+    def p_IncDecStmt(self, p):
+        '''
+        IncDecStmt 	: Expression PLUS_PLUS
+                    | Expression MINUS_MINUS
+        '''
+    
+    def p_Assignment(self, p):
+        '''
+        Assignment	: Expression assign_op Expression
+        '''
+        # reducing power of rule ExpresssionList assign_op ExpressionList
+    
+    def p_assign_op(self, p):
+        '''
+        assign_op	: PLUS_EQ
+                    | MINUS_EQ
+                    | STAR_EQ
+                    | DIVIDE_EQ
+                    | MODULO_EQ
+                    | AMP_EQ
+                    | OR_EQ
+                    | CARET_EQ
+                    | EQ
+        '''
+    
+    def p_ForStmt(self, p):
+        '''
+        ForStmt : ForLoop Block
+                | WhileLoop Block
+        '''
+    
+    def p_ForLoop(self, p):
+        '''
+        ForLoop	: FOR InitStmt SEMICOLON Condition SEMICOLON PostStmt
+                | FOR InitStmt SEMICOLON Condition SEMICOLON
+                | FOR InitStmt SEMICOLON SEMICOLON PostStmt
+                | FOR InitStmt SEMICOLON SEMICOLON
+                | FOR SEMICOLON Condition SEMICOLON PostStmt
+                | FOR SEMICOLON Condition SEMICOLON
+                | FOR SEMICOLON SEMICOLON PostStmt
+                | FOR SEMICOLON SEMICOLON 
+        '''
+    
+    def p_WhileLoop(self, p):
+        '''
+        WhileLoop	: FOR Condition
+                    | FOR
+        '''
+    
+    def p_InitStmt(self, p):
+        '''
+        InitStmt	: SimpleStmt
+        '''
+    
+    def p_PostStmt(self, p):
+        '''
+        PostStmt	: SimpleStmt
+        '''
+    
+    def p_Condition(self, p):
+        '''
+        Condition 	: Expression
+        '''
+    
+    def p_ReturnStmt(self, p):
+        '''
+        ReturnStmt	: RETURN SEMICOLON
+                    | RETURN ExpressionList SEMICOLON
+        '''
+    
+    def p_BreakStmt(self, p):
+        '''
+        BreakStmt	: BREAK SEMICOLON
+                    | BREAK Label SEMICOLON
+        '''
+    
+    def p_ContinueStmt(self, p):
+        '''
+        ContinueStmt 	: CONTINUE SEMICOLON
+                        | CONTINUE Label SEMICOLON
+        '''
+    
+    def p_GotoStmt(self, p):
+        '''
+        GotoStmt	: GOTO Label SEMICOLON
+        '''
+    
+    def p_IfStmt(self, p):
+        '''
+        IfStmt 	: IF SimpleStmt SEMICOLON Expression Block
+                | IF Expression Block
+                | IF SimpleStmt SEMICOLON Expression Block ElseStmt
+                | IF Expression Block ElseStmt
+        '''
+    def p_ElseStmt(self, p):
+        '''
+        ElseStmt	: ELSE IfStmt
+                    | ELSE Block
+        '''
 
-    def p_shift_expression(self, p):
-        '''shift_expression : additive_expression
-                            | shift_expression LSHIFT additive_expression
-                            | shift_expression RSHIFT additive_expression'''
+    def p_SourceFile(self, p):
+        '''
+        SourceFile	: PackageClause ImportDeclList TopLevelDeclList
+                    | PackageClause ImportDeclList
+                    | PackageClause TopLevelDeclList
+                    | PackageClause
+        '''
+    
+    def p_PackageClause(self, p):
+        '''
+        PackageClause   : PACKAGE ID
+        '''
 
-    def p_relational_expression(self, p):
-        '''relational_expression    : shift_expression
-                                    | relational_expression LT shift_expression
-                                    | relational_expression GT shift_expression
-                                    | relational_expression LT_EQ shift_expression
-                                    | relational_expression GT_EQ shift_expression'''
+    def p_ImportDeclList(self, p):
+        '''
+        ImportDeclList	: ImportDeclList ImportDecl SEMICOLON
+                        | ImportDecl SEMICOLON
+        '''
 
-    def p_equality_expression(self, p):
-        '''equality_expression  : relational_expression
-                                | equality_expression EQ_EQ relational_expression
-                                | equality_expression NOT_EQ relational_expression'''
-
-    def p_and_expression(self, p):
-	    '''and_expression   : equality_expression
-                            | and_expression AMP equality_expression'''
-
-    def p_exclusive_or_expression(self, p):
-        '''exclusive_or_expression  : and_expression
-                                    | exclusive_or_expression CARET and_expression'''
-
-    def p_inclusive_or_expression(self, p):
-        '''inclusive_or_expression  : exclusive_or_expression
-                                    | inclusive_or_expression OR exclusive_or_expression'''
-
-
-    def p_logical_and_expression(self, p):
-        '''logical_and_expression   : inclusive_or_expression
-                                    | logical_and_expression AMP_AMP inclusive_or_expression'''
-
-
-    def p_logical_or_expression(self, p):
-        '''logical_or_expression    : logical_and_expression
-                                    | logical_or_expression OR_OR logical_and_expression'''
-
-    def p_assignment_expression(self, p):
-        '''assignment_expression    : logical_or_expression
-                                    | unary_expression assignment_operator assignment_expression'''
-
-    def p_assignment_operator(self, p):
-        '''assignment_operator  : PLUS_EQ
-                                | MINUS_EQ
-                                | STAR_EQ
-                                | DIVIDE_EQ
-                                | MODULO_EQ
-                                | AMP_EQ
-                                | OR_EQ
-                                | CARET_EQ
-                                | EQ
-                                | ASSIGN'''
-
-    def p_expression(self, p):
-        '''expression   : assignment_expression'''
-
-    def p_lit_operand(self, p):
-        '''lit_operand  : INT_LIT
-                        | FLOAT_LIT
-                        | STRING_LIT
-                        | BOOL_LIT
-                        | CHAR_LIT
-                        | NIL'''
+    def p_ImportDecl(self, p):
+        '''
+        ImportDecl 	: IMPORT ImportPath
+        '''
+    
+    def p_ImportPath(self, p):
+        '''
+        ImportPath	: STRING_LIT
+        '''
+    
+    def p_TopLevelDeclList(self, p):
+        '''
+        TopLevelDeclList	: TopLevelDeclList TopLevelDecl
+                            | TopLevelDecl
+        '''
 
 if __name__ == "__main__" :
     file = open(sys.argv[1], 'r')

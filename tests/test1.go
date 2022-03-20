@@ -22,7 +22,7 @@ func main() {
     if i>0 {
         i++;
     }
-
+    k := make([]rect, 3);
     i, j := i+j, 3+2;
     for i,j := 2,1; i > 0; i-- {
         i--;

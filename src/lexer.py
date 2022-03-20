@@ -19,14 +19,14 @@ reserved = {
     "continue": "CONTINUE",
     "return": "RETURN",
     "nil": "NIL",
-    "default": "DEFAULT",
+    #"default": "DEFAULT",
     "func": "FUNC",
-    "case": "CASE",
+    #"case": "CASE",
     "goto": "GOTO",
     "struct": "STRUCT",
     "else": "ELSE",
     "package": "PACKAGE",
-    "switch": "SWITCH",
+    #"switch": "SWITCH",
     "const": "CONST",
     "if": "IF",
     "type": "TYPE",
@@ -67,14 +67,14 @@ tokens = list(reserved.values()) + [
     "DOT",
     "SEMICOLON",
     "COLON",
-    "SINGLE_QUOTES",
-    "DOUBLE_QUOTES",
+    #"SINGLE_QUOTES",
+    #"DOUBLE_QUOTES",
     "INT_LIT",
     "FLOAT_LIT",
     "STRING_LIT",
     "BOOL_LIT",
     "CHAR_LIT",
-    "BR",
+    #"BR",
     "ID",
     "DATA_TYPE",
     "PLUS",
@@ -85,7 +85,7 @@ tokens = list(reserved.values()) + [
     "AMP",
     "OR",
     "CARET",
-    "AND_NOT",
+    #"AND_NOT",
     "LSHIFT",
     "RSHIFT",
     "ASSIGN",
@@ -134,8 +134,8 @@ class LexerGo:
     t_DOT = r"(\.)"
     t_SEMICOLON = r"(\;)"
     t_COLON = r"(\:)"
-    t_DOUBLE_QUOTES = r"(\")"
-    t_SINGLE_QUOTES = r"(\')"
+    #t_DOUBLE_QUOTES = r"(\")"
+    #t_SINGLE_QUOTES = r"(\')"
     t_PLUS = r"(\+)"
     t_MINUS = r"(-)"
     t_STAR = r"(\*)"
@@ -147,7 +147,7 @@ class LexerGo:
     t_AMP = r"(\&)"
     t_OR = r"\|"
     t_CARET = r"\^"
-    t_AND_NOT = r"&^"
+    #t_AND_NOT = r"&^"
     t_ignore = " \t"
 
     def __init__(self):
