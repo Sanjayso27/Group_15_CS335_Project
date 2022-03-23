@@ -10,7 +10,7 @@ def print_error(msg, lineno, colno):
 
 def print_warn(msg, lineno, colno):
     console.print("WARNING", style = "bold underline violet", end = "")
-    console.print(f" L:{lineno} C:{colno}", style="bold cyan", end = "")
+    console.print(f" L:{lineno} C:{colno}", style="bold", end = "")
     console.print(" : ", msg)
     
 

@@ -22,17 +22,21 @@ class ParserGo:
             ('left', 'PLUS', 'MINUS', 'OR', 'CARET'),
             ('left', 'STAR', 'DIVIDE', 'MODULO', 'LSHIFT', 'RSHIFT', 'AMP')
         )
-        self.scopeStack = [0]
-        self.scopeList = [Scope(isGlobal=True)]
-        self.scopePtr = 0
+        self.curScope = Scope(isGlobal=True)    # contains current scope
+        self.scopeList = [self.curScope]        # contains list of all scopes
+        self.scopePtr = 1                       # next index of scope to insert
+        self.scopeStack = [0]                   # contains all active scopes
+        
     
     def popScope(self):
         self.scopeStack.pop()
+        self.curScope = self.scopeList[self.scopeStack[-1]]
 
     def pushScope(self):
-        self.scopePtr += 1
         self.scopeStack.append(self.scopePtr)
-        self.scopeList.append(Scope())
+        self.curScope = Scope()
+        self.scopeList.append(self.curScope)
+        self.scopePtr += 1
 
     def pos(self, lexpos):
         return (self.lexer.tokenList[lexpos][2], self.lexer.tokenList[lexpos][3])
@@ -161,7 +165,7 @@ class ParserGo:
         '''
         popBlock   : 
         '''
-        print(self.scopeList[self.scopeStack[-1]].symbolTable)
+        print(self.curScope.symbolTable)
         self.popScope()
     
     def p_StatementList(self, p):
@@ -194,17 +198,24 @@ class ParserGo:
         '''
         ConstDecl	: CONST ConstSpec SEMICOLON
         '''
+        p[0] = Node(name='ConstDecl', kind='Stmt')
         if len(p[2]['idList']) != len(p[2]['expList']) :
             msg = "Unequal number of identifiers and expressions"
             print_error(msg, *(self.pos(p.lexpos(1))))
         else :
             for id, exp in zip(p[2]['idList'], p[2]['expList']):
-                if self.scopeList[self.scopeStack[-1]].lookUp(id) :
+                if self.curScope.lookUp(id) :
                     msg = "Redeclaring variable"
                     print_error(msg, *(self.pos(p.lexpos(1))))
                 else :
                     # if type is untyped infer type from expression
-                    self.scopeList[self.scopeStack[-1]].addSymbol(id, p[2]['type'])
+                    type = p[2]['type']
+                    eq = Node(name = '=', kind = 'EXP', type = type)
+                    var = Node(name = id, kind = 'VAR', type = type)
+                    eq.childList += [var, exp]
+                    p[0].childList.append(eq)
+                    self.curScope.addSymbol(name = id, type = type, node = var)
+        print(p[0].childList)
 
     def p_ConstSpec(self, p):
         '''
@@ -249,7 +260,7 @@ class ParserGo:
         VarDecl	: VAR VarSpec SEMICOLON
         '''
 
-        p[0] = Node('Stmt')
+        p[0] = Node(name = 'VarDecl', kind = 'Stmt')
         
         if p[2]['initialized'] :
             if len(p[2]['idList']) != len(p[2]['expList']) :
@@ -257,15 +268,17 @@ class ParserGo:
                 print_error(msg, *(self.pos(p.lexpos(1))))
             else :
                 for id, exp in zip(p[2]['idList'], p[2]['expList']):
-                    if self.scopeList[self.scopeStack[-1]].lookUp(id) :
+                    if self.curScope.lookUp(id) :
                         msg = "Redeclaring variable"
                         print_error(msg, *(self.pos(p.lexpos(1))))
                     else :
-                        eq = Node('=', parent = p[0])
-                        var = Node(id, parent = eq)
-                        # exp.parent = eq
-                        self.scopeList[self.scopeStack[-1]].addSymbol(id, p[2]['type'])
-                        # initialize exp
+                        # initializing to exp
+                        type = p[2]['type']
+                        eq = Node(name = '=', kind = 'EXP', type = type)
+                        var = Node(name = id, kind = 'VAR', type = type)
+                        eq.childList += [var, exp]
+                        self.curScope.addSymbol(name = id, type = type, node = var)
+                        p[0].childList.append(eq)
         else :
             # initialize to default value 
             # infer from type
@@ -274,7 +287,15 @@ class ParserGo:
                     msg = "Redeclaring variable"
                     print_error(msg, *(self.pos(p.lexpos(1))))
                 else :
-                    self.scopeList[self.scopeStack[-1]].addSymbol(id, p[2]['type'])
+                    type = p[2]['type']
+                    eq = Node(name = '=', kind = 'EXP', type = type)
+                    var = Node(name = id, kind = 'VAR', type = type)
+                    exp = Node(name = 'default', kind = 'EXP', type = type)
+                    eq.childList += [var, exp]
+                    self.curScope.addSymbol(name = id, type = type, node = var)
+                    p[0].childList.append(eq)
+
+        print(p[0].childList)
     
     def p_VarSpec(self, p):
         '''
@@ -290,18 +311,24 @@ class ParserGo:
         '''
         ShortVarDecl : IdentifierList ASSIGN ExpressionList
         '''
+        p[0] = Node(name = 'VarDecl', kind = 'Stmt')
         if len(p[1]) != len(p[3]) :
             msg = "Unequal number of identifiers and expressions"
             print_error(msg, *(self.pos(p.lexpos(1))))
         else :
-            for id, exp in zip(p[1], p[3]):
-                if self.scopeList[self.scopeStack[-1]].lookUp(id) :
+            for id, exp in zip(p[1], p[3]) :
+                if self.curScope.lookUp(id) :
                     msg = "Redeclaring variable"
                     print_error(msg, *(self.pos(p.lexpos(1))))
                 else :
                     # type should be infered from expression
                     type = None
-                    self.scopeList[self.scopeStack[-1]].addSymbol(id, type)            
+                    eq = Node(name = '=', kind = 'EXP', type = type)
+                    var = Node(name = id, kind = 'VAR', type = type)
+                    eq.childList += [var, exp]
+                    self.curScope.addSymbol(name = id, type = type, node = var)
+                    p[0].childList.append(eq)
+        print(p[0].childList)            
 
     
     def p_FunctionDecl(self, p):
@@ -371,28 +398,79 @@ class ParserGo:
                 | OperandName
                 | LROUND Expression RROUND
         '''
+        if len(p) == 2 :
+            p[0] = p[1]
+        else :
+            p[0] = p[2]
 
     def p_Literal(self, p):
         '''
         Literal	: BasicLit 
                 | CompositeLit
         '''
+        p[0] = p[1]
     
     def p_BasicLit(self, p):
         '''
-        BasicLit	: INT_LIT
-                    | FLOAT_LIT
-                    | STRING_LIT
-                    | BOOL_LIT
-                    | CHAR_LIT
-                    | NIL
+        BasicLit	: IntLit
+                    | FloatLit
+                    | StrLit
+                    | BoolLit
+                    | CharLit
+                    | NilLit
         '''
+        p[0] = p[1]
+        print(self.pos(p.lexpos(1)))
 
+    def p_IntLit(self, p):
+        '''
+        IntLit  : INT_LIT
+        '''
+        p[0] = Node(name='Lit', kind = 'EXP', type = 'int', value = int(p[1]))
+
+    def p_FloatLit(self, p):
+        '''
+        FloatLit    : FLOAT_LIT
+        '''
+        p[0] = Node(name='Lit', kind = 'EXP', type = 'float', value = float(p[1]))
+
+    def p_StrLit(self, p):
+        '''
+        StrLit  : STRING_LIT
+        '''
+        p[0] = Node(name='Lit', kind = 'EXP', type = 'string', value = p[1])
+    
+    def p_CharLit(self, p):
+        '''
+        CharLit : CHAR_LIT
+        '''
+        p[0] = Node(name='Lit', kind = 'EXP', type = 'char', value = ord(p[1]))
+    
+    def p_BoolLit(self, p):
+        '''
+        BoolLit : BOOL_LIT
+        '''
+        value = True if p[1]=='true' else False
+        p[0] = Node(name='Lit', kind = 'EXP', type = 'bool', value = value)
+
+    def p_NilLit(self, p):
+        '''
+        NilLit  : NIL
+        '''
+        p[0] = Node(name = 'Lit', kind = 'EXP', type = 'PTR', value = 0)
     
     def p_OperandName(self, p):
         '''
         OperandName : ID 
         '''
+        # try finding in stacked scopes
+        for scopeid in self.scopeStack[::-1] :
+            if self.scopeList[scopeid].lookUp(p[1]) :
+                p[0] = self.scopeList[scopeid].symbolTable[p[1]]['node']
+                return
+        
+        msg = f"Using variable before declaration {p[1]}"
+        print_error(msg, *(self.pos(p.lexpos(1))))
 
     def p_CompositeLit(self, p):
         '''
@@ -405,7 +483,7 @@ class ParserGo:
                     | SliceType
                     | StructType
         ''' 
-        # Reducing power of rule No defined types will form composite literal
+        # Reducing power of rule : No defined types will form composite literal
     
     def p_LiteralValue(self, p):
         '''
@@ -486,12 +564,23 @@ class ParserGo:
                     | Expression RSHIFT Expression
                     | Expression AMP Expression
         '''
+        if len(p) == 2 :
+            p[0] = p[1]
+        else :
+            op = Node(name = p[2], kind = 'EXP')
+            op.childList += [p[1], p[3]]
 
     def p_UnaryExpr(self, p):
         '''
         UnaryExpr  	: PrimaryExpr 
                     | unary_op UnaryExpr
         '''
+        if len(p) == 2 :
+            p[0] = p[1]
+        else :
+            # infer type from expression
+            op = Node(name = p[1], kind = 'EXP')
+            op.childList.append(p[2])
         
     def p_unary_op(self, p):
         '''
@@ -502,6 +591,7 @@ class ParserGo:
                     | STAR
                     | AMP
         '''
+        p[0] = p[1]
     
     def p_Statement(self, p):
         '''
@@ -525,11 +615,13 @@ class ParserGo:
                     | Assignment 
                     | ShortVarDecl
         '''
+        p[0] = p[1]
         
     def p_ExpressionStmt(self, p):
         '''
         ExpressionStmt 	: Expression
         '''
+        p[0] = p[1]
 
     def p_LabeledStmt(self, p):
         '''         
@@ -545,7 +637,15 @@ class ParserGo:
         '''
         IncDecStmt 	: Expression PLUS_PLUS
                     | Expression MINUS_MINUS
+                    | PLUS_PLUS Expression
+                    | MINUS_MINUS Expression
         '''
+        if p[1] == '++' or p[1] == '--' :
+            msg = "Prefix increment not allowed in go"
+            print_error(msg, *(self.pos(p.lexpos(1))))
+            return
+        op = Node(name = p[2], kind = 'EXP')
+        op.childList.append(p[1])
     
     def p_Assignment(self, p):
         '''

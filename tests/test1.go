@@ -19,9 +19,11 @@ const a, a = 1, 2;
 func main() {
     //r := rect{10, 5};
     var a, b int = 2, 3;
+    b++;
+    ++a;
     
     fmt.Println("area: ", r.area(), b);
-    fmt.Println("perim:", r.perim());
+    fmt.Println("perim:", r.perim(), a);
 
     rp := &r;
     fmt.Println("area: ", rp.area());
