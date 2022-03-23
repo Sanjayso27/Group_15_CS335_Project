@@ -4,6 +4,7 @@ from lexer import tokens
 import ply.yacc as yacc
 from helper import print_error, print_warn
 from collections import OrderedDict
+from data_structures import Scope, Node
 # import logging
 # log = logging.getLogger('ply')
 
@@ -21,16 +22,20 @@ class ParserGo:
             ('left', 'PLUS', 'MINUS', 'OR', 'CARET'),
             ('left', 'STAR', 'DIVIDE', 'MODULO', 'LSHIFT', 'RSHIFT', 'AMP')
         )
-        self.scopeStack = []
-        self.scopeList = []
+        self.scopeStack = [0]
+        self.scopeList = [Scope(isGlobal=True)]
         self.scopePtr = 0
     
     def popScope(self):
         self.scopeStack.pop()
 
     def pushScope(self):
-        self.scopeStack.append(self.scopePtr)
         self.scopePtr += 1
+        self.scopeStack.append(self.scopePtr)
+        self.scopeList.append(Scope())
+
+    def pos(self, lexpos):
+        return (self.lexer.tokenList[lexpos][2], self.lexer.tokenList[lexpos][3])
 
     def build(self):
         self.parser = yacc.yacc(module=self, start='SourceFile', method='LALR', debug=False)
@@ -137,7 +142,7 @@ class ParserGo:
         '''
         FieldDecl 	: IdentifierList Type
         '''
-        p[0] = [p[1], [p[2] for i in p[1]] ]
+        p[0] = [p[1], [p[2] for i in p[1]]]
     
     def p_Block(self, p):
         '''
@@ -145,6 +150,7 @@ class ParserGo:
                 | lcurly rcurly
         '''
         p[0] = ['BLOCK',p[3]]
+    
     def p_pushBlock(self, p):
         '''
         pushBlock   : 
@@ -155,6 +161,7 @@ class ParserGo:
         '''
         popBlock   : 
         '''
+        print(self.scopeList[self.scopeStack[-1]].symbolTable)
         self.popScope()
     
     def p_StatementList(self, p):
@@ -185,13 +192,29 @@ class ParserGo:
 
     def p_ConstDecl(self, p):
         '''
-        ConstDecl	:	CONST ConstSpec SEMICOLON
+        ConstDecl	: CONST ConstSpec SEMICOLON
         '''
+        if len(p[2]['idList']) != len(p[2]['expList']) :
+            msg = "Unequal number of identifiers and expressions"
+            print_error(msg, *(self.pos(p.lexpos(1))))
+        else :
+            for id, exp in zip(p[2]['idList'], p[2]['expList']):
+                if self.scopeList[self.scopeStack[-1]].lookUp(id) :
+                    msg = "Redeclaring variable"
+                    print_error(msg, *(self.pos(p.lexpos(1))))
+                else :
+                    # if type is untyped infer type from expression
+                    self.scopeList[self.scopeStack[-1]].addSymbol(id, p[2]['type'])
 
     def p_ConstSpec(self, p):
         '''
         ConstSpec   :	IdentifierList EQ ExpressionList
+                    |   IdentifierList Type EQ ExpressionList
         '''
+        if len(p) == 4 :
+            p[0] = {'idList' : p[1], 'expList' : p[3],  'type' : 'untyped'}
+        else :
+            p[0] = {'idList' : p[1], 'expList' : p[4],  'type' : p[2]}
 
     def p_IdentifierList(self, p):
         '''
@@ -209,6 +232,12 @@ class ParserGo:
         ExpressionList	: ExpressionList COMMA Expression
                         | Expression
         '''
+        if len(p) == 2 :
+            p[0] = [p[1]]
+        else :
+            p[1].append(p[3])
+            p[0] = p[1]
+        
     
     def p_TypeDecl(self, p):
         '''
@@ -219,23 +248,68 @@ class ParserGo:
         '''
         VarDecl	: VAR VarSpec SEMICOLON
         '''
+
+        p[0] = Node('Stmt')
+        
+        if p[2]['initialized'] :
+            if len(p[2]['idList']) != len(p[2]['expList']) :
+                msg = "Unequal number of identifiers and expressions"
+                print_error(msg, *(self.pos(p.lexpos(1))))
+            else :
+                for id, exp in zip(p[2]['idList'], p[2]['expList']):
+                    if self.scopeList[self.scopeStack[-1]].lookUp(id) :
+                        msg = "Redeclaring variable"
+                        print_error(msg, *(self.pos(p.lexpos(1))))
+                    else :
+                        eq = Node('=', parent = p[0])
+                        var = Node(id, parent = eq)
+                        # exp.parent = eq
+                        self.scopeList[self.scopeStack[-1]].addSymbol(id, p[2]['type'])
+                        # initialize exp
+        else :
+            # initialize to default value 
+            # infer from type
+            for id in p[2]['idList'] :
+                if self.scopeList[self.scopeStack[-1]].lookUp(id) :
+                    msg = "Redeclaring variable"
+                    print_error(msg, *(self.pos(p.lexpos(1))))
+                else :
+                    self.scopeList[self.scopeStack[-1]].addSymbol(id, p[2]['type'])
     
     def p_VarSpec(self, p):
         '''
         VarSpec	: IdentifierList Type 
                 | IdentifierList Type EQ ExpressionList
         '''
+        if len(p) == 3 :
+            p[0] = {'idList' : p[1], 'expList' : [],  'type' : p[2], 'initialized' : False}
+        else :
+            p[0] = {'idList' : p[1], 'expList' : p[4],  'type' : p[2], 'initialized' : True}
     
     def p_ShortVarDecl(self, p):
         '''
         ShortVarDecl : IdentifierList ASSIGN ExpressionList
         '''
+        if len(p[1]) != len(p[3]) :
+            msg = "Unequal number of identifiers and expressions"
+            print_error(msg, *(self.pos(p.lexpos(1))))
+        else :
+            for id, exp in zip(p[1], p[3]):
+                if self.scopeList[self.scopeStack[-1]].lookUp(id) :
+                    msg = "Redeclaring variable"
+                    print_error(msg, *(self.pos(p.lexpos(1))))
+                else :
+                    # type should be infered from expression
+                    type = None
+                    self.scopeList[self.scopeStack[-1]].addSymbol(id, type)            
+
     
     def p_FunctionDecl(self, p):
         '''
         FunctionDecl 	: FUNC FunctionName Signature FunctionBody
                         | FUNC FunctionName Signature SEMICOLON
         '''
+        print(p.lexpos(2))
     
     def p_FunctionName(self, p):
         '''
@@ -313,13 +387,12 @@ class ParserGo:
                     | CHAR_LIT
                     | NIL
         '''
+
     
     def p_OperandName(self, p):
         '''
         OperandName : ID 
         '''
-
-
 
     def p_CompositeLit(self, p):
         '''

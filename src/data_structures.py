@@ -20,16 +20,13 @@ class Scope:
 
     def addSymbol(self, name, type) :
         self.symbolTable[name] = {'type' : type}
+        print(f"Added symbol {name}")
 
     def addTypeDef(self, name, type) :
         self.typeDefs[name] = type
-    
-    
 
 class Node:
-    def __init__(self, name):
+    def __init__(self, name, parent=None):
         self.name = name
-        self.code = []
-        self. typeList = []
-        self.placeList = []
-        self.code = []
+        self.type = None
+        self.parent = None
