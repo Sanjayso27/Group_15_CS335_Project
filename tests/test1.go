@@ -4,6 +4,9 @@ import "fmt";
 
 type rect struct {
     width, height int;
+    best struct {
+        width, height int;
+    };
 };
 
 func (r *rect) area() int {

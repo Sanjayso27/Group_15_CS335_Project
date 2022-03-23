@@ -3,6 +3,7 @@ from lexer import LexerGo
 from lexer import tokens
 import ply.yacc as yacc
 from helper import print_error, print_warn
+from collections import OrderedDict
 # import logging
 # log = logging.getLogger('ply')
 
@@ -20,6 +21,16 @@ class ParserGo:
             ('left', 'PLUS', 'MINUS', 'OR', 'CARET'),
             ('left', 'STAR', 'DIVIDE', 'MODULO', 'LSHIFT', 'RSHIFT', 'AMP')
         )
+        self.scopeStack = []
+        self.scopeList = []
+        self.scopePtr = 0
+    
+    def popScope(self):
+        self.scopeStack.pop()
+
+    def pushScope(self):
+        self.scopeStack.append(self.scopePtr)
+        self.scopePtr += 1
 
     def build(self):
         self.parser = yacc.yacc(module=self, start='SourceFile', method='LALR', debug=False)
@@ -44,12 +55,14 @@ class ParserGo:
         Type    : TypeName
                 | TypeLit
         '''
+        p[0] = p[1]
 
     def p_TypeName(self, p):
         '''
         TypeName	: ID
                     | DATA_TYPE
         '''
+        p[0] = p[1]
 
     def p_TypeLit(self, p):
         '''
@@ -58,11 +71,13 @@ class ParserGo:
                 | PointerType 
                 | SliceType
         '''
+        p[0] = p[1]
         
     def p_ArrayType(self, p):
         '''
         ArrayType : LSQUARE ArrayLength RSQUARE ElementType
         '''
+        p[0] = ['ARR', p[2], p[4]]
 
     def p_ArrayLength(self, p):
         '''
@@ -73,49 +88,86 @@ class ParserGo:
         '''
         SliceType 	: LSQUARE RSQUARE ElementType
         '''
+        p[0] = ['SLC', p[3]]
     
     def p_ElementType(self, p):
         '''
         ElementType : Type
         '''
+        p[0] = p[1]
     
     def p_PointerType(self, p):
         '''
         PointerType	: STAR BaseType
         '''
-    
+        p[0] = ['PTR', p[1]]
+
     def p_BaseType(self, p):
         '''
         BaseType	: Type
         '''
+        p[0] = p[1]
     
     def p_StructType(self, p):
         '''
         StructType 	: STRUCT lcurly FieldDeclList rcurly
         '''
-    
+        dict = OrderedDict()
+        for (id, type) in zip(p[3][0], p[3][1]):
+            if id in dict.keys() :
+                msg = "Field of struct redeclared"
+                print_error(msg, 0, 0)
+            else :
+                dict[id] = type
+        p[0] = ['STRUCT', dict]
+
     def p_FieldDeclList(self, p):
         '''
         FieldDeclList 	: FieldDeclList FieldDecl SEMICOLON 
                         | FieldDecl SEMICOLON
         '''
-    
+        if len(p) == 3:
+            p[0] = [p[1][0], p[1][1]]
+        else :
+            p[1][0] += p[2][0]
+            p[1][1] += p[2][1]
+            p[0] = [p[1][0], p[1][1]]
+        
     def p_FieldDecl(self, p):
         '''
         FieldDecl 	: IdentifierList Type
         '''
+        p[0] = [p[1], [p[2] for i in p[1]] ]
     
     def p_Block(self, p):
         '''
-        Block	: lcurly StatementList rcurly
+        Block	: lcurly pushBlock StatementList popBlock rcurly
                 | lcurly rcurly
         '''
+        p[0] = ['BLOCK',p[3]]
+    def p_pushBlock(self, p):
+        '''
+        pushBlock   : 
+        '''
+        self.pushScope()
+
+    def p_popBlock(self, p):
+        '''
+        popBlock   : 
+        '''
+        self.popScope()
     
     def p_StatementList(self, p):
         '''
         StatementList 	: StatementList Statement
                         | Statement
         '''
+        if(len(p)==2):
+            p[0] = [p[1]]
+        if(len(p)==3):
+            p[1].append(p[2])
+            p[0] = p[1]
+
 
     def p_Declaration(self, p):
         '''
@@ -146,6 +198,11 @@ class ParserGo:
         IdentifierList	: IdentifierList COMMA ID
                         | ID
         '''
+        if len(p) == 2 :
+            p[0] = [p[1]]
+        else :
+            p[1].append(p[3])
+            p[0] = p[1]
 
     def p_ExpressionList(self, p):
         '''
@@ -262,6 +319,8 @@ class ParserGo:
         OperandName : ID 
         '''
 
+
+
     def p_CompositeLit(self, p):
         '''
         CompositeLit	: LiteralType LiteralValue
@@ -308,6 +367,7 @@ class ParserGo:
                     | MAKE LROUND SliceType COMMA Expression RROUND
 
         '''
+
         # | Conversion 
     
     def p_Selector(self, p):
