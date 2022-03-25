@@ -11,14 +11,15 @@ func zeroptr(iptr *int) {
 }
 
 func main() {
-    i := 1;
-    //Println("initial:", i);
+    if i := 1; i==1 {
+        zeroval(i);
+        zeroptr(&i);
+    } else if i==1 {
+        zeroval(i);
+        zeroptr(&i);
+    } else {
+        zeroval(i);
+        zeroptr(&i);
+    }
 
-    zeroval(i);
-    //Println("zeroval:", i);
-
-    zeroptr(&i);
-    //Println("zeroptr:", i);
-
-    //Println("pointer:", &i);
 }

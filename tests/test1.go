@@ -16,7 +16,7 @@ func (r rect) perim() int {
 
 const a, a = 1, 2;
 
-func main() {
+func main(a, b int) {
     //r := rect{10, 5};
     var a, b int = 2, 3;
     b++;

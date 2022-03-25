@@ -26,9 +26,11 @@ class ParserGo:
         self.scopeList = [self.curScope]        # contains list of all scopes
         self.scopePtr = 1                       # next index of scope to insert
         self.scopeStack = [0]                   # contains all active scopes
-        
-    
+        self.funcList = {}                      # contains all fucntions
+        self.curFunc = ''
+
     def popScope(self):
+        print(self.scopeStack)
         self.scopeStack.pop()
         self.curScope = self.scopeList[self.scopeStack[-1]]
 
@@ -109,7 +111,7 @@ class ParserGo:
         '''
         PointerType	: STAR BaseType
         '''
-        p[0] = ['PTR', p[1]]
+        p[0] = ['PTR', p[2]]
 
     def p_BaseType(self, p):
         '''
@@ -153,7 +155,8 @@ class ParserGo:
         Block	: lcurly pushBlock StatementList popBlock rcurly
                 | lcurly rcurly
         '''
-        p[0] = ['BLOCK',p[3]]
+        p[0] = Node(name='block', kind='Stmt')
+        p[0].childList = p[3]
     
     def p_pushBlock(self, p):
         '''
@@ -333,48 +336,84 @@ class ParserGo:
     
     def p_FunctionDecl(self, p):
         '''
-        FunctionDecl 	: FUNC FunctionName Signature FunctionBody
-                        | FUNC FunctionName Signature SEMICOLON
+        FunctionDecl 	: FUNC FunctionName pushBlock Signature FunctionBody popBlock
         '''
-        print(p.lexpos(2))
-    
+        
+
     def p_FunctionName(self, p):
         '''
         FunctionName	: ID
         '''
+        if not self.curScope.isGlobal :
+            msg = "Functions can only be declared in global Scope"
+            print_error(msg, *(self.pos(p.lexpos(1))))
+        elif p[1] in self.funcList.keys() :
+            msg = "Function has already been declared"
+            print_error(msg, *(self.pos(p.lexpos(1))))
+        else :
+            self.funcList[p[1]] = {}
+            self.curFunc = p[1]
     
     def p_Signature(self, p):
         '''
         Signature      	: Parameters
                         | Parameters Result
         '''
+        for id, type in zip(p[1]['idList'], p[1]['typeList']) :
+            if self.curScope.lookUp(id) :
+                msg = "Redeclaring variable"
+                print_error(msg, *(self.pos(p.lexpos(1))))
+            else :
+                var = Node(name='id', kind='EXP', type = type)
+                self.curScope.addSymbol(name = id, type = type, node = var)
+        
+        if len(p) == 2 :
+            returnType = 'void'
+        else :
+            returnType = p[2]
+        
+        self.funcList[self.curFunc]['input'] = p[1]['typeList']
+        self.funcList[self.curFunc]['output'] = returnType
+        
+
     
     def p_Parameters(self, p):
         '''
         Parameters 	: LROUND ParameterList RROUND
                     | LROUND RROUND
         '''
+        if len(p) == 4 :
+            p[0] = {'idList' : p[2][0], 'typeList' : p[2][1]}
+        else :
+            p[0] = {'idList' : [], 'typeList' : []}
     
     def p_ParameterList(self, p):
         '''
         ParameterList	: ParameterList COMMA ParameterDecl 
                         | ParameterDecl
         '''
+        if len(p) == 4 :
+            p[1][0] += p[2][0]
+            p[1][1] += p[2][1]
+        p[0] = p[1]
     
     def p_ParameterDecl(self, p):
         '''
         ParameterDecl	: IdentifierList Type
         '''
+        p[0] = [p[1], [p[2] for id in p[1]]]
     
     def p_Result(self, p):
         '''
         Result 	: Type
         '''
+        p[0] = p[1]
 
     def p_FunctionBody(self, p):
         '''
         FunctionBody	: Block
         '''
+        p[0] = p[1]
     
     def p_MethodDecl(self, p):
         '''
@@ -627,11 +666,18 @@ class ParserGo:
         '''         
         LabeledStmt	: Label COLON Statement
         '''
+        if p[1] in self.curScope.symbolTable.keys() :
+            msg = "Redeclaring identfier as label"
+            print_error(msg, *(self.pos(p.lexpos(1))))
+        else :
+            self.curScope.addSymbol(name=p[1], type='label', node = p[3])
+            p[0] = p[3]
 
     def p_Label(self, p):
         '''
         Label   : ID
         '''
+        p[0] = p[1]
     
     def p_IncDecStmt(self, p):
         '''
@@ -668,65 +714,96 @@ class ParserGo:
     
     def p_ForStmt(self, p):
         '''
-        ForStmt : ForLoop Block
-                | WhileLoop Block
+        ForStmt : pushBlock ForLoop Block popBlock
+                | pushBlock WhileLoop Block popBlock
         '''
+        p[2].childList.append(p[3])
+        p[0] = p[2]
     
     def p_ForLoop(self, p):
         '''
-        ForLoop	: FOR InitStmt SEMICOLON Condition SEMICOLON PostStmt
-                | FOR InitStmt SEMICOLON Condition SEMICOLON
-                | FOR InitStmt SEMICOLON SEMICOLON PostStmt
-                | FOR InitStmt SEMICOLON SEMICOLON
-                | FOR SEMICOLON Condition SEMICOLON PostStmt
-                | FOR SEMICOLON Condition SEMICOLON
-                | FOR SEMICOLON SEMICOLON PostStmt
-                | FOR SEMICOLON SEMICOLON 
+        ForLoop	: FOR InitStmtOpt SEMICOLON ConditionOpt SEMICOLON PostStmtOpt
         '''
+        node = Node(name = 'for', kind = 'Stmt')
+        node.childList += [p[2], p[4], p[6]]
+        p[0] = node
+        
     
     def p_WhileLoop(self, p):
         '''
-        WhileLoop	: FOR Condition
-                    | FOR
+        WhileLoop	: FOR ConditionOpt
         '''
+        node = Node(name = 'while', kind = 'Stmt')
+        node.childList += [p[2]]
+        p[0] = node
     
     def p_InitStmt(self, p):
         '''
-        InitStmt	: SimpleStmt
+        InitStmtOpt	: SimpleStmt
+                    |
         '''
+        if len(p) == 2 :
+            p[0] = p[1]
+        else :
+            p[0] = Node(name='EmptyStmt', kind='Stmt')
     
     def p_PostStmt(self, p):
         '''
-        PostStmt	: SimpleStmt
+        PostStmtOpt	: SimpleStmt
+                    |
         '''
+        if len(p) == 2 :
+            p[0] = p[1]
+        else :
+            p[0] = Node(name='EmptyStmt', kind='Stmt')
     
     def p_Condition(self, p):
         '''
-        Condition 	: Expression
+        ConditionOpt 	: Expression
+                        |
         '''
+        if len(p) == 2 :
+            p[0] = p[1]
+        else :
+            p[0] = Node(name='EmptyExpr', kind='Stmt', type='bool', value=True)
     
     def p_ReturnStmt(self, p):
         '''
         ReturnStmt	: RETURN SEMICOLON
                     | RETURN ExpressionList SEMICOLON
         '''
+
     
     def p_BreakStmt(self, p):
         '''
         BreakStmt	: BREAK SEMICOLON
                     | BREAK Label SEMICOLON
         '''
+        p[0] = Node(name='break', kind = 'Stmt')
     
     def p_ContinueStmt(self, p):
         '''
         ContinueStmt 	: CONTINUE SEMICOLON
                         | CONTINUE Label SEMICOLON
         '''
+        p[0] = Node(name='continue', kind = 'Stmt')
     
     def p_GotoStmt(self, p):
         '''
         GotoStmt	: GOTO Label SEMICOLON
         '''
+        # node = Node(name = 'goto', kind = 'Stmt')
+        # if self.curScope.symbolTable.lookUp(p[2]) :
+        #     if self.curScope.symbolTable[p[2]]['type'] != 'label':
+        #         msg = "Label is not of label type"
+        #         print_error(msg, *(self.pos(p.lexpos(2))))
+        #     else :
+        #         node.childList.append(self.curScope.symbolTable[p[2]]['node'])
+        # else :
+        #     msg = "Cannot go to undeclared label"
+        #     print_error(msg, *(self.pos(p.lexpos(2))))
+        
+
     
     def p_IfStmt(self, p):
         '''
@@ -735,11 +812,26 @@ class ParserGo:
                 | IF SimpleStmt SEMICOLON Expression Block ElseStmt
                 | IF Expression Block ElseStmt
         '''
+        node = Node(name = 'if', kind = 'Stmt')
+        if len(p) == 4 :
+            node.childList += [None, p[2], p[3], None]
+        elif len(p) == 5 :
+            node.childList += [None, p[2], p[3], p[4]]
+        elif len(p) == 6 :
+            node.childList += [p[2], p[4], p[5], None]
+        elif len(p) == 7 :
+            node.childList += [p[2], p[4], p[5], p[6]]
+        p[0] = node
+
     def p_ElseStmt(self, p):
         '''
         ElseStmt	: ELSE IfStmt
                     | ELSE Block
         '''
+        node = Node(name = 'else', kind = 'Stmt')
+        node.childList.append(p[2])
+        p[0] = node
+        
 
     def p_SourceFile(self, p):
         '''
@@ -783,3 +875,4 @@ if __name__ == "__main__" :
     parser.build()
     result = parser.parser.parse(data, lexer=parser.lexer.lexer, tracking=True)
     print(result)
+    print(parser.funcList)
