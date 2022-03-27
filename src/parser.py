@@ -30,7 +30,7 @@ class ParserGo:
         self.curFunc = ''
 
     def popScope(self):
-        print(self.scopeStack)
+        print(self.curScope.symbolTable)
         self.scopeStack.pop()
         self.curScope = self.scopeList[self.scopeStack[-1]]
 
@@ -168,7 +168,7 @@ class ParserGo:
         '''
         popBlock   : 
         '''
-        print(self.curScope.symbolTable)
+        # print(self.curScope.symbolTable)
         self.popScope()
     
     def p_StatementList(self, p):
@@ -218,7 +218,7 @@ class ParserGo:
                     eq.childList += [var, exp]
                     p[0].childList.append(eq)
                     self.curScope.addSymbol(name = id, type = type, node = var)
-        print(p[0].childList)
+        # print(p[0].childList)
 
     def p_ConstSpec(self, p):
         '''
@@ -275,7 +275,6 @@ class ParserGo:
                         msg = "Redeclaring variable"
                         print_error(msg, *(self.pos(p.lexpos(1))))
                     else :
-                        # initializing to exp
                         type = p[2]['type']
                         eq = Node(name = '=', kind = 'EXP', type = type)
                         var = Node(name = id, kind = 'VAR', type = type)
@@ -298,7 +297,7 @@ class ParserGo:
                     self.curScope.addSymbol(name = id, type = type, node = var)
                     p[0].childList.append(eq)
 
-        print(p[0].childList)
+        # print(p[0].childList)
     
     def p_VarSpec(self, p):
         '''
@@ -324,14 +323,13 @@ class ParserGo:
                     msg = "Redeclaring variable"
                     print_error(msg, *(self.pos(p.lexpos(1))))
                 else :
-                    # type should be infered from expression
-                    type = None
+                    type = exp.type
                     eq = Node(name = '=', kind = 'EXP', type = type)
                     var = Node(name = id, kind = 'VAR', type = type)
                     eq.childList += [var, exp]
                     self.curScope.addSymbol(name = id, type = type, node = var)
                     p[0].childList.append(eq)
-        print(p[0].childList)            
+        # print(p[0].childList)            
 
     
     def p_FunctionDecl(self, p):
@@ -353,6 +351,8 @@ class ParserGo:
         else :
             self.funcList[p[1]] = {}
             self.curFunc = p[1]
+
+        # print("function added")
     
     def p_Signature(self, p):
         '''
@@ -374,7 +374,6 @@ class ParserGo:
         
         self.funcList[self.curFunc]['input'] = p[1]['typeList']
         self.funcList[self.curFunc]['output'] = returnType
-        
 
     
     def p_Parameters(self, p):
@@ -459,7 +458,7 @@ class ParserGo:
                     | NilLit
         '''
         p[0] = p[1]
-        print(self.pos(p.lexpos(1)))
+        # print(self.pos(p.lexpos(1)))
 
     def p_IntLit(self, p):
         '''
@@ -508,6 +507,10 @@ class ParserGo:
                 p[0] = self.scopeList[scopeid].symbolTable[p[1]]['node']
                 return
         
+        if p[1] in self.funcList.keys() :
+            p[0] = Node(name=p[1], kind = 'FUNC', type = self.funcList[p[1]]['output'])
+            return
+        
         msg = f"Using variable before declaration {p[1]}"
         print_error(msg, *(self.pos(p.lexpos(1))))
 
@@ -550,6 +553,11 @@ class ParserGo:
                     | PrimaryExpr Arguments
                     | MakeExpr
         '''
+        if len(p)==2 :
+            p[0] = p[1]
+        elif p[1].kind == 'FUNC' :
+            p[1].childList += p[2]
+            p[0] = p[1]
     
     def p_MakeExpr(self, p):
         '''
@@ -580,6 +588,10 @@ class ParserGo:
         Arguments	: LROUND ExpressionList RROUND
                     | LROUND RROUND
         '''
+        if len(p) == 4 :
+            p[0] = p[2]
+        else :
+            p[0] = []
 
     def p_Expression(self, p):
         '''
@@ -607,7 +619,48 @@ class ParserGo:
             p[0] = p[1]
         else :
             op = Node(name = p[2], kind = 'EXP')
+            Logical = ['||', '&&']
+            Compare = ['==', '!=', '<', '<=', '>', '>=']
+            Bit = ['|', '^', '>>', '<<', '&']
+            Math = ['+', '-', '*', '/', '%']
+
+            if p[1].type == None or p[3].type == None :  
+                # already some error do report repeated errors
+                op.type = None
+            
+            elif p[2] in Logical :
+                if p[1].type != 'bool' or p[3].type != 'bool' :
+                    msg = 'Cannot do boolean operation on non boolean'
+                    print_error(msg, *(self.pos(p.lexpos(2))))
+                else :
+                    op.type = 'bool'
+            
+            elif p[2] in Compare :
+                print("here")
+                if p[1].type != p[3].type:
+                    msg = 'Cannot do compare operation on expression of differnt types'
+                    print_error(msg, *(self.pos(p.lexpos(2))))
+                else :
+                    op.type = 'bool'
+            
+            elif p[2] in Bit :
+                if p[1].type != 'int' or p[3].type != 'int':
+                    msg = 'Cannot do bitwise operation on non-integer types'
+                    print_error(msg, *(self.pos(p.lexpos(2))))
+                else :
+                    op.type = 'int'
+            
+            elif p[2] in Math :
+                if p[1].type == 'int' and p[3].type == 'int':
+                    op.type = 'int'
+                elif p[1].type == 'float' and p[3].type == 'float' :
+                    op.type = 'float'
+                else :
+                    msg = 'Cannot do math operation on non-numeric types'
+                    print_error(msg, *(self.pos(p.lexpos(2))))
+
             op.childList += [p[1], p[3]]
+            p[0] = op
 
     def p_UnaryExpr(self, p):
         '''
@@ -618,8 +671,38 @@ class ParserGo:
             p[0] = p[1]
         else :
             # infer type from expression
-            op = Node(name = p[1], kind = 'EXP')
-            op.childList.append(p[2])
+                op = Node(name = p[1], kind = 'EXP')
+                op.childList.append(p[2])
+
+                if p[1] == '-' or p[1] == '+':
+                    
+                    if p[2].type != 'int' and p[2].type != 'float' :
+                        msg = 'Cannot do math operation on non-numeric types'
+                        print_error(msg, *(self.pos(p.lexpos(2))))
+                    else :
+                        op.type = p[2].type
+
+                elif p[1] == '!' :
+                    if p[2].type != 'bool' :
+                        msg = 'Cannot do boolean operation on non boolean'
+                        print_error(msg, *(self.pos(p.lexpos(2))))
+                    else :
+                        op.type = 'bool'
+
+                elif p[1] == '*' :
+                    if type(p[2].type) is list and len(p[2].type) > 1 and p[2].type[0] == 'PTR' :
+                        op.type = p[2].type[1]
+                    else :
+                        msg = 'Cannot dereference not pointer type'
+                        print_error(msg, *(self.pos(p.lexpos(2))))
+
+                elif p[1] == '&' :
+                    # Should reference only referable variables
+                    # like &3 is invalid
+                    if p[2].type is not None :
+                        op.type = ['PTR', p[2].type]
+
+                p[0] = op
         
     def p_unary_op(self, p):
         '''
@@ -646,6 +729,7 @@ class ParserGo:
                     | SimpleStmt SEMICOLON
                     | SEMICOLON
         '''
+        p[0] = p[1]
     
     def p_SimpleStmt(self, p):
         '''
@@ -692,11 +776,16 @@ class ParserGo:
             return
         op = Node(name = p[2], kind = 'EXP')
         op.childList.append(p[1])
+        p[0] = p[1]
     
     def p_Assignment(self, p):
         '''
         Assignment	: Expression assign_op Expression
         '''
+        op = Node(name = p[2], kind = 'Assignment')
+        op.childList.append(p[1])
+        op.childList.append(p[3])
+        p[0] = op
         # reducing power of rule ExpresssionList assign_op ExpressionList
     
     def p_assign_op(self, p):
@@ -711,6 +800,7 @@ class ParserGo:
                     | CARET_EQ
                     | EQ
         '''
+        p[0] = p[1]
     
     def p_ForStmt(self, p):
         '''
@@ -772,7 +862,7 @@ class ParserGo:
         ReturnStmt	: RETURN SEMICOLON
                     | RETURN ExpressionList SEMICOLON
         '''
-
+        p[0] = Node(name='return', kind='Stmt')
     
     def p_BreakStmt(self, p):
         '''
@@ -792,16 +882,9 @@ class ParserGo:
         '''
         GotoStmt	: GOTO Label SEMICOLON
         '''
-        # node = Node(name = 'goto', kind = 'Stmt')
-        # if self.curScope.symbolTable.lookUp(p[2]) :
-        #     if self.curScope.symbolTable[p[2]]['type'] != 'label':
-        #         msg = "Label is not of label type"
-        #         print_error(msg, *(self.pos(p.lexpos(2))))
-        #     else :
-        #         node.childList.append(self.curScope.symbolTable[p[2]]['node'])
-        # else :
-        #     msg = "Cannot go to undeclared label"
-        #     print_error(msg, *(self.pos(p.lexpos(2))))
+        p[0] = Node(name='goto', kind = 'Stmt')
+        # save scopestack and node to which label points
+        # we will check for errors after parsing
         
 
     

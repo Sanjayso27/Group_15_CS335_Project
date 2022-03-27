@@ -11,15 +11,16 @@ func zeroptr(iptr *int) {
 }
 
 func main() {
-    if i := 1; i==1 {
-        zeroval(i);
-        zeroptr(&i);
-    } else if i==1 {
-        zeroval(i);
-        zeroptr(&i);
-    } else {
+    i := 1;
+    var x float = 1.0;
+    y := 2.0;
+    if true || false {
         zeroval(i);
         zeroptr(&i);
     }
-
+    
+    j := (x + 1.0) == x;
+    k := &j;
+    i = +3;
+    i = 4;
 }
