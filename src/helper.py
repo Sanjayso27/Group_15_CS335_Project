@@ -24,6 +24,18 @@ def print_table(headers, data):
         table.add_row(*r)
     console.print(table)
 
+def print_csv(headers, data, filename):
+    f = open(filename, mode='w')
+    for h in headers :
+        f.write(f"{h}, ")
+    f.write("\n")
+    for row in data :
+        for h in row :
+            f.write(f"{h}, ")
+        f.write("\n")
+    f.close()
+
+
 def typestring(typelist):
     if isinstance(typelist, str) :
         return typelist

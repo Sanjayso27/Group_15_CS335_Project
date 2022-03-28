@@ -2,7 +2,7 @@ import sys
 from lexer import LexerGo
 from lexer import tokens
 import ply.yacc as yacc
-from helper import print_error, print_warn, print_table, typestring
+from helper import print_error, print_warn, print_csv, typestring
 from collections import OrderedDict
 from data_structures import Scope, Node
 import pygraphviz as pgv
@@ -11,9 +11,8 @@ import pygraphviz as pgv
 
 class ParserGo:
 
-    def __init__(self, data):
-        global globalptr
-        globalptr = 0
+    def __init__(self, data, filePath):
+        self.filePath = filePath
         self.lexer = LexerGo()
         self.lexer.build()
         self.lexer.input(data)
@@ -33,7 +32,6 @@ class ParserGo:
         self.curFunc = ''
 
     def popScope(self):
-        print(self.curScope.symbolTable)
         self.scopeStack.pop()
         self.curScope = self.scopeList[self.scopeStack[-1]]
 
@@ -177,7 +175,6 @@ class ParserGo:
         '''
         popBlock   : 
         '''
-        # print(self.curScope.symbolTable)
         self.popScope()
     
     def p_StatementList(self, p):
@@ -303,8 +300,6 @@ class ParserGo:
                     eq.childList += [var, exp]
                     self.curScope.addSymbol(name = id, type = type, node = var)
                     p[0].childList.append(eq)
-
-        # print(p[0].childList)
     
     def p_VarSpec(self, p):
         '''
@@ -356,10 +351,14 @@ class ParserGo:
         for scopeid in self.funcList[self.curFunc]['scopeList'] :
             for name in self.scopeList[scopeid].symbolTable.keys() :
                 table.append([name, typestring(self.scopeList[scopeid].symbolTable[name]['type'])])
-        print_table(['id', 'type'], table)
+        #print(self.filePath)
+        print_csv(['id', 'type'], table,f"{self.filePath}_{self.curFunc}.csv")
         G = pgv.AGraph(directed=True)
+        p[4].name = 'FunctionBody'
         self.dfs(p[4], G)
-        G.draw(f"{self.curFunc}.png", prog='dot')
+        G.draw(f"{self.filePath}_{self.curFunc}.png", prog='dot')
+        G.write(f"{self.filePath}_{self.curFunc}.dot")
+
         self.curFunc = ''
         
 
@@ -439,7 +438,6 @@ class ParserGo:
         FunctionBody	: Block
         '''
         p[0] = p[1]
-        print(p[1])
     
     def p_MethodDecl(self, p):
         '''
@@ -485,7 +483,6 @@ class ParserGo:
                     | NilLit
         '''
         p[0] = p[1]
-        # print(self.pos(p.lexpos(1)))
 
     def p_IntLit(self, p):
         '''
@@ -515,7 +512,6 @@ class ParserGo:
         '''
         BoolLit : BOOL_LIT
         '''
-        print(p[1])
         p[0] = Node(name=p[1], kind = 'EXP', type = 'bool')
 
     def p_NilLit(self, p):
@@ -610,7 +606,7 @@ class ParserGo:
             p[0] = p[2]
 
         elif p[2].kind == 'Index':
-            print("Here")
+            
             p[2].childList = [p[1]] + p[2].childList
             if p[1].type is None :
                 p[2].type = None
@@ -624,7 +620,6 @@ class ParserGo:
                 msg = f"Can not index {p[1].name}, incompatible type"
                 print_error(msg, *(self.pos(p.lexpos(1))))
 
-            print(p[2].type)
             if p[2].childList[1].type != 'int' :
                 msg = f"Can not index with non integer expression {p[1].name}"
                 print_error(msg, *(self.pos(p.lexpos(1))))
@@ -946,9 +941,11 @@ class ParserGo:
     def p_ReturnStmt(self, p):
         '''
         ReturnStmt	: RETURN SEMICOLON
-                    | RETURN ExpressionList SEMICOLON
+                    | RETURN Expression SEMICOLON
         '''
         p[0] = Node(name='return', kind='Stmt')
+        if len(p)==4 :
+            p[0].childList = [p[2]]
     
     def p_BreakStmt(self, p):
         '''
@@ -1040,8 +1037,6 @@ class ParserGo:
 if __name__ == "__main__" :
     file = open(sys.argv[1], 'r')
     data = file.read()
-    parser = ParserGo(data)
+    parser = ParserGo(data, sys.argv[1])
     parser.build()
     result = parser.parser.parse(data, lexer=parser.lexer.lexer, tracking=True)
-    print(result)
-    print(parser.funcList)
