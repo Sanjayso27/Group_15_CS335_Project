@@ -2,7 +2,7 @@ import sys
 from lexer import LexerGo
 from lexer import tokens
 import ply.yacc as yacc
-from helper import print_error, print_warn
+from helper import print_error, print_warn, print_table, typestring
 from collections import OrderedDict
 from data_structures import Scope, Node
 # import logging
@@ -46,7 +46,7 @@ class ParserGo:
     def build(self):
         self.parser = yacc.yacc(module=self, start='SourceFile', method='LALR', debug=False)
 
-    def p_error(self, p):
+    def p_error(self, p) :
         if p is not  None :
             msg = f"Found unexpexted token {p.value}"
             print_error(msg, self.lexer.tokenList[p.lexpos][2], self.lexer.tokenList[p.lexpos][3])
@@ -88,12 +88,16 @@ class ParserGo:
         '''
         ArrayType : LSQUARE ArrayLength RSQUARE ElementType
         '''
+        if p[2].type != 'int' :
+            msg = "length of array should be integer"
+            print_error(msg, *(self.pos(p.lexpos(2))))
         p[0] = ['ARR', p[2], p[4]]
 
     def p_ArrayLength(self, p):
         '''
         ArrayLength : Expression
         '''
+        p[0] = p[1]
     
     def p_SliceType(self, p):
         '''
@@ -162,6 +166,8 @@ class ParserGo:
         '''
         pushBlock   : 
         '''
+        if self.curFunc != '':
+            self.funcList[self.curFunc]['scopeList'].append(self.scopePtr)
         self.pushScope()
 
     def p_popBlock(self, p):
@@ -218,7 +224,6 @@ class ParserGo:
                     eq.childList += [var, exp]
                     p[0].childList.append(eq)
                     self.curScope.addSymbol(name = id, type = type, node = var)
-        # print(p[0].childList)
 
     def p_ConstSpec(self, p):
         '''
@@ -251,7 +256,6 @@ class ParserGo:
         else :
             p[1].append(p[3])
             p[0] = p[1]
-        
     
     def p_TypeDecl(self, p):
         '''
@@ -334,8 +338,14 @@ class ParserGo:
     
     def p_FunctionDecl(self, p):
         '''
-        FunctionDecl 	: FUNC FunctionName pushBlock Signature FunctionBody popBlock
+        FunctionDecl 	: FUNC FunctionName Signature FunctionBody popBlock
         '''
+        table = []
+        for scopeid in self.funcList[self.curFunc]['scopeList'] :
+            for name in self.scopeList[scopeid].symbolTable.keys() :
+                table.append([name, typestring(self.scopeList[scopeid].symbolTable[name]['type'])])
+        print_table(['id', 'type'], table)
+        self.curFunc = ''
         
 
     def p_FunctionName(self, p):
@@ -359,6 +369,7 @@ class ParserGo:
         Signature      	: Parameters
                         | Parameters Result
         '''
+        self.pushScope()
         for id, type in zip(p[1]['idList'], p[1]['typeList']) :
             if self.curScope.lookUp(id) :
                 msg = "Redeclaring variable"
@@ -374,7 +385,7 @@ class ParserGo:
         
         self.funcList[self.curFunc]['input'] = p[1]['typeList']
         self.funcList[self.curFunc]['output'] = returnType
-
+        self.funcList[self.curFunc]['scopeList'] = [self.scopePtr - 1]
     
     def p_Parameters(self, p):
         '''
@@ -555,6 +566,7 @@ class ParserGo:
         '''
         if len(p)==2 :
             p[0] = p[1]
+
         elif p[1].kind == 'FUNC' :
             if len(self.funcList[p[1].name]['input']) != len(p[2]) :
                 msg = "Invalid number of argumnets"
@@ -569,6 +581,40 @@ class ParserGo:
                         p[1].type = None
             p[1].childList += p[2]
             p[0] = p[1]
+        
+        elif p[2].kind == 'SELECTOR' :
+            p[2].childList = [p[1]] + p[2].childList
+            if p[1].type is None :
+                p[2].type = None
+            elif isinstance(p[1].type, list) and len(p[1].type) > 1 and p[1].type[0] == 'STRUCT' and p[2].childList[1].name in p[1].type[1].keys() :
+                p[2].type = p[1].type[1][p[2].childList[1].name]
+            else :
+                msg = f"Can not access field of {p[1].name}"
+                print_error(msg, *(self.pos(p.lexpos(1))))
+            p[0] = p[2]
+
+        elif p[2].kind == 'Index':
+            print("Here")
+            p[2].childList = [p[1]] + p[2].childList
+            if p[1].type is None :
+                p[2].type = None
+            elif isinstance(p[1].type, list) and len(p[1].type) > 2 and p[1].type[0] == 'ARR':
+                p[2].type = p[1].type[2]
+            elif isinstance(p[1].type, list) and len(p[1].type) > 1 and p[1].type[0] == 'SLC':
+                p[2].type = p[1].type[1]
+            elif isinstance(p[1].type, list) and len(p[1].type) > 1 and p[1].type[0] == 'PTR':
+                p[2].type = p[1].type[1]
+            else :
+                msg = f"Can not index {p[1].name}, incompatible type"
+                print_error(msg, *(self.pos(p.lexpos(1))))
+
+            print(p[2].type)
+            if p[2].childList[1].type != 'int' :
+                msg = f"Can not index with non integer expression {p[1].name}"
+                print_error(msg, *(self.pos(p.lexpos(1))))
+            
+            p[0] = p[2]
+
     
     def p_MakeExpr(self, p):
         '''
@@ -576,22 +622,25 @@ class ParserGo:
                     | MAKE LROUND SliceType COMMA Expression RROUND
 
         '''
+
         # | Conversion 
     
     def p_Selector(self, p):
         '''
         Selector	: DOT ID
         '''
-    
-    # def p_Conversion(self, p):
-    #     '''
-    #     Conversion	: Type LROUND Expression RROUND
-    #     '''
+        op = Node(name = 'DOT', kind = 'SELECTOR')
+        selector = Node(name = p[2], kind = 'Field')
+        op.childList = [selector]
+        p[0] = op
     
     def p_Index(self, p):
         '''
         Index	: LSQUARE Expression RSQUARE
         '''
+        op = Node(name = '[]', kind = 'Index')
+        op.childList = [p[2]]
+        p[0] = op
     
     def p_Arguments(self, p):
         '''
@@ -632,7 +681,7 @@ class ParserGo:
             Logical = ['||', '&&']
             Compare = ['==', '!=', '<', '<=', '>', '>=']
             Bit = ['|', '^', '>>', '<<', '&']
-            Math = ['+', '-', '*', '/', '%']
+            Math = ['+', '-', '*', '/']
 
             if p[1].type == None or p[3].type == None :  
                 # already some error do report repeated errors
@@ -646,7 +695,6 @@ class ParserGo:
                     op.type = 'bool'
             
             elif p[2] in Compare :
-                print("here")
                 if p[1].type != p[3].type:
                     msg = 'Cannot do compare operation on expression of differnt types'
                     print_error(msg, *(self.pos(p.lexpos(2))))
@@ -668,6 +716,13 @@ class ParserGo:
                 else :
                     msg = 'Cannot do math operation on non-numeric types'
                     print_error(msg, *(self.pos(p.lexpos(2))))
+
+            elif p[2] == '%' :
+                if p[1].type != 'int' or p[3].type != 'int':
+                    msg = 'Cannot do modulo operation on non-integer types'
+                    print_error(msg, *(self.pos(p.lexpos(2))))
+                else :
+                    op.type = 'int'
 
             op.childList += [p[1], p[3]]
             p[0] = op
@@ -796,6 +851,11 @@ class ParserGo:
         op.childList.append(p[1])
         op.childList.append(p[3])
         p[0] = op
+        if p[1].type is None or p[3].type is None :
+            p[0].type = None
+        if p[1].type != p[3].type :
+            msg = "Found type type mismatch"
+            print_error(msg, *(self.pos(p.lexpos(2))))
         # reducing power of rule ExpresssionList assign_op ExpressionList
     
     def p_assign_op(self, p):
