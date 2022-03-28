@@ -15,7 +15,7 @@ func main() {
     var x float = 1.0;
     y := 2.0;
     if true || false {
-        zeroval(i);
+        zeroval(*&i);
         zeroptr(&i);
     }
     

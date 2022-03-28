@@ -556,6 +556,17 @@ class ParserGo:
         if len(p)==2 :
             p[0] = p[1]
         elif p[1].kind == 'FUNC' :
+            if len(self.funcList[p[1].name]['input']) != len(p[2]) :
+                msg = "Invalid number of argumnets"
+                print_error(msg, *(self.pos(p.lexpos(2))))
+            else :
+                for i, type in enumerate(self.funcList[p[1].name]['input']):
+                    if p[2][i].type is None :
+                        p[1].type = None
+                    elif type != p[2][i].type :
+                        msg = "Found type mismatch in arguments"
+                        print_error(msg, *(self.pos(p.lexpos(2))))
+                        p[1].type = None
             p[1].childList += p[2]
             p[0] = p[1]
     
@@ -565,7 +576,6 @@ class ParserGo:
                     | MAKE LROUND SliceType COMMA Expression RROUND
 
         '''
-
         # | Conversion 
     
     def p_Selector(self, p):
