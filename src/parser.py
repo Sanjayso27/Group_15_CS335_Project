@@ -5,12 +5,15 @@ import ply.yacc as yacc
 from helper import print_error, print_warn, print_table, typestring
 from collections import OrderedDict
 from data_structures import Scope, Node
+import pygraphviz as pgv
 # import logging
 # log = logging.getLogger('ply')
 
 class ParserGo:
 
     def __init__(self, data):
+        global globalptr
+        globalptr = 0
         self.lexer = LexerGo()
         self.lexer.build()
         self.lexer.input(data)
@@ -335,6 +338,15 @@ class ParserGo:
                     p[0].childList.append(eq)
         # print(p[0].childList)            
 
+    def dfs(self, node, G):
+        G.add_node(id(node), label=node.name)
+        node.visited = True
+        for i, child in enumerate(node.childList) :
+            if child is not None:
+                if not child.visited :
+                    G.add_node(id(child), label=child.name)
+                    self.dfs(child, G)
+                G.add_edge(id(node), id(child), label=str(i))
     
     def p_FunctionDecl(self, p):
         '''
@@ -345,6 +357,9 @@ class ParserGo:
             for name in self.scopeList[scopeid].symbolTable.keys() :
                 table.append([name, typestring(self.scopeList[scopeid].symbolTable[name]['type'])])
         print_table(['id', 'type'], table)
+        G = pgv.AGraph(directed=True)
+        self.dfs(p[4], G)
+        G.draw(f"{self.curFunc}.png", prog='dot')
         self.curFunc = ''
         
 
@@ -375,7 +390,7 @@ class ParserGo:
                 msg = "Redeclaring variable"
                 print_error(msg, *(self.pos(p.lexpos(1))))
             else :
-                var = Node(name='id', kind='EXP', type = type)
+                var = Node(name=id, kind='EXP', type = type)
                 self.curScope.addSymbol(name = id, type = type, node = var)
         
         if len(p) == 2 :
@@ -424,6 +439,7 @@ class ParserGo:
         FunctionBody	: Block
         '''
         p[0] = p[1]
+        print(p[1])
     
     def p_MethodDecl(self, p):
         '''
@@ -475,38 +491,38 @@ class ParserGo:
         '''
         IntLit  : INT_LIT
         '''
-        p[0] = Node(name='Lit', kind = 'EXP', type = 'int', value = int(p[1]))
+        p[0] = Node(name=p[1], kind = 'EXP', type = 'int', value = int(p[1]))
 
     def p_FloatLit(self, p):
         '''
         FloatLit    : FLOAT_LIT
         '''
-        p[0] = Node(name='Lit', kind = 'EXP', type = 'float', value = float(p[1]))
+        p[0] = Node(name=p[1], kind = 'EXP', type = 'float', value = float(p[1]))
 
     def p_StrLit(self, p):
         '''
         StrLit  : STRING_LIT
         '''
-        p[0] = Node(name='Lit', kind = 'EXP', type = 'string', value = p[1])
+        p[0] = Node(name=p[1], kind = 'EXP', type = 'string', value = p[1])
     
     def p_CharLit(self, p):
         '''
         CharLit : CHAR_LIT
         '''
-        p[0] = Node(name='Lit', kind = 'EXP', type = 'char', value = ord(p[1]))
+        p[0] = Node(name=p[1], kind = 'EXP', type = 'char', value = ord(p[1]))
     
     def p_BoolLit(self, p):
         '''
         BoolLit : BOOL_LIT
         '''
-        value = True if p[1]=='true' else False
-        p[0] = Node(name='Lit', kind = 'EXP', type = 'bool', value = value)
+        print(p[1])
+        p[0] = Node(name=p[1], kind = 'EXP', type = 'bool')
 
     def p_NilLit(self, p):
         '''
         NilLit  : NIL
         '''
-        p[0] = Node(name = 'Lit', kind = 'EXP', type = 'PTR', value = 0)
+        p[0] = Node(name = p[1], kind = 'EXP', type = 'PTR', value = 0)
     
     def p_OperandName(self, p):
         '''

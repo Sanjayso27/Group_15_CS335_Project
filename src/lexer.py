@@ -164,7 +164,6 @@ class LexerGo:
 
     def t_BOOL_LIT(self, t):
         r"((true)|(false))"
-        t.value = 1 if t.value == "true" else "false"
         return t
 
     @TOKEN(float_lit)
