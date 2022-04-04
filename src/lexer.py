@@ -1,3 +1,4 @@
+# TODO : modify to put ; after each }, ), ++, --, ID, DATA_TYPE, Literals, BREAK, CONTINUE, RETURN when followed by newline 
 import ply.lex as lex
 import sys
 from ply.lex import TOKEN

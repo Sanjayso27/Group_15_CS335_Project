@@ -1,0 +1,654 @@
+commit e07de91f58888ee9518f400b8bf86b28a6725b68
+Author: adip1343 <aadhip43@gmail.com>
+Date:   Mon Mar 28 23:48:31 2022 +0530
+
+    Printing csv and dot output
+
+diff --git a/src/data_structures.py b/src/data_structures.py
+index c058c57..a0a9f53 100644
+--- a/src/data_structures.py
++++ b/src/data_structures.py
+@@ -20,7 +20,6 @@ class Scope:
+ 
+     def addSymbol(self, name, type, node = 'None') :
+         self.symbolTable[name] = {'type' : type, 'node' : node}
+-        print(f"Added symbol {name}")
+ 
+     def addTypeDef(self, name, type) :
+         self.typeDefs[name] = type
+diff --git a/src/helper.py b/src/helper.py
+index adcc06a..c7874cf 100644
+--- a/src/helper.py
++++ b/src/helper.py
+@@ -24,6 +24,18 @@ def print_table(headers, data):
+         table.add_row(*r)
+     console.print(table)
+ 
++def print_csv(headers, data, filename):
++    f = open(filename, mode='w')
++    for h in headers :
++        f.write(f"{h}, ")
++    f.write("\n")
++    for row in data :
++        for h in row :
++            f.write(f"{h}, ")
++        f.write("\n")
++    f.close()
++
++
+ def typestring(typelist):
+     if isinstance(typelist, str) :
+         return typelist
+diff --git a/src/parser.py b/src/parser.py
+index e7b1ca1..5042302 100644
+--- a/src/parser.py
++++ b/src/parser.py
+@@ -2,7 +2,7 @@ import sys
+ from lexer import LexerGo
+ from lexer import tokens
+ import ply.yacc as yacc
+-from helper import print_error, print_warn, print_table, typestring
++from helper import print_error, print_warn, print_csv, typestring
+ from collections import OrderedDict
+ from data_structures import Scope, Node
+ import pygraphviz as pgv
+@@ -11,9 +11,8 @@ import pygraphviz as pgv
+ 
+ class ParserGo:
+ 
+-    def __init__(self, data):
+-        global globalptr
+-        globalptr = 0
++    def __init__(self, data, filePath):
++        self.filePath = filePath
+         self.lexer = LexerGo()
+         self.lexer.build()
+         self.lexer.input(data)
+@@ -33,7 +32,6 @@ class ParserGo:
+         self.curFunc = ''
+ 
+     def popScope(self):
+-        print(self.curScope.symbolTable)
+         self.scopeStack.pop()
+         self.curScope = self.scopeList[self.scopeStack[-1]]
+ 
+@@ -177,7 +175,6 @@ class ParserGo:
+         '''
+         popBlock   : 
+         '''
+-        # print(self.curScope.symbolTable)
+         self.popScope()
+     
+     def p_StatementList(self, p):
+@@ -303,8 +300,6 @@ class ParserGo:
+                     eq.childList += [var, exp]
+                     self.curScope.addSymbol(name = id, type = type, node = var)
+                     p[0].childList.append(eq)
+-
+-        # print(p[0].childList)
+     
+     def p_VarSpec(self, p):
+         '''
+@@ -356,10 +351,14 @@ class ParserGo:
+         for scopeid in self.funcList[self.curFunc]['scopeList'] :
+             for name in self.scopeList[scopeid].symbolTable.keys() :
+                 table.append([name, typestring(self.scopeList[scopeid].symbolTable[name]['type'])])
+-        print_table(['id', 'type'], table)
++        #print(self.filePath)
++        print_csv(['id', 'type'], table,f"{self.filePath}_{self.curFunc}.csv")
+         G = pgv.AGraph(directed=True)
++        p[4].name = 'FunctionBody'
+         self.dfs(p[4], G)
+-        G.draw(f"{self.curFunc}.png", prog='dot')
++        G.draw(f"{self.filePath}_{self.curFunc}.png", prog='dot')
++        G.write(f"{self.filePath}_{self.curFunc}.dot")
++
+         self.curFunc = ''
+         
+ 
+@@ -439,7 +438,6 @@ class ParserGo:
+         FunctionBody	: Block
+         '''
+         p[0] = p[1]
+-        print(p[1])
+     
+     def p_MethodDecl(self, p):
+         '''
+@@ -485,7 +483,6 @@ class ParserGo:
+                     | NilLit
+         '''
+         p[0] = p[1]
+-        # print(self.pos(p.lexpos(1)))
+ 
+     def p_IntLit(self, p):
+         '''
+@@ -515,7 +512,6 @@ class ParserGo:
+         '''
+         BoolLit : BOOL_LIT
+         '''
+-        print(p[1])
+         p[0] = Node(name=p[1], kind = 'EXP', type = 'bool')
+ 
+     def p_NilLit(self, p):
+@@ -610,7 +606,7 @@ class ParserGo:
+             p[0] = p[2]
+ 
+         elif p[2].kind == 'Index':
+-            print("Here")
++            
+             p[2].childList = [p[1]] + p[2].childList
+             if p[1].type is None :
+                 p[2].type = None
+@@ -624,7 +620,6 @@ class ParserGo:
+                 msg = f"Can not index {p[1].name}, incompatible type"
+                 print_error(msg, *(self.pos(p.lexpos(1))))
+ 
+-            print(p[2].type)
+             if p[2].childList[1].type != 'int' :
+                 msg = f"Can not index with non integer expression {p[1].name}"
+                 print_error(msg, *(self.pos(p.lexpos(1))))
+@@ -946,9 +941,11 @@ class ParserGo:
+     def p_ReturnStmt(self, p):
+         '''
+         ReturnStmt	: RETURN SEMICOLON
+-                    | RETURN ExpressionList SEMICOLON
++                    | RETURN Expression SEMICOLON
+         '''
+         p[0] = Node(name='return', kind='Stmt')
++        if len(p)==4 :
++            p[0].childList = [p[2]]
+     
+     def p_BreakStmt(self, p):
+         '''
+@@ -1040,8 +1037,6 @@ class ParserGo:
+ if __name__ == "__main__" :
+     file = open(sys.argv[1], 'r')
+     data = file.read()
+-    parser = ParserGo(data)
++    parser = ParserGo(data, sys.argv[1])
+     parser.build()
+-    result = parser.parser.parse(data, lexer=parser.lexer.lexer, tracking=True)
+-    print(result)
+-    print(parser.funcList)
+\ No newline at end of file
++    result = parser.parser.parse(data, lexer=parser.lexer.lexer, tracking=True)
+\ No newline at end of file
+diff --git a/tests/test1.go b/tests/test1.go
+index 4a5c4cf..7fbb564 100644
+--- a/tests/test1.go
++++ b/tests/test1.go
+@@ -1,31 +1,38 @@
+ package main
+ 
+-import "fmt";
+ 
+-type rect struct {
+-    width, height int;
+-};
+-
+-func (r *rect) area() int {
+-    return r.width * r.height;
++func fun(a struct{x,y int;}) bool{
++	if a.x*a.x > a.y{
++		return true;
++	} else {
++		return false;
++	}
+ }
+ 
+-func (r rect) perim() int {
+-    return 2*r.width + 2*r.height;
++func zeroval(ival int) {
++    ival = 0;
+ }
+ 
+-const a, a = 1, 2;
++func zeroptr(iptr *int) {
++    *iptr = 0;
++}
+ 
+-func main(a, b int) {
+-    //r := rect{10, 5};
+-    var a, b int = 2, 3;
+-    b++;
+-    ++a;
+-    
+-    fmt.Println("area: ", r.area(), b);
+-    fmt.Println("perim:", r.perim(), a);
++func fib(n int) int {
++    if n == 0 || n == 1 {
++        return 0;
++    }
++    return fib(n-1) + fib(n-2);
++}
+ 
+-    rp := &r;
+-    fmt.Println("area: ", rp.area());
+-    fmt.Println("perim:", rp.perim());
++func main(){
++	var b struct{x,y int;};
++	b.x = 4;
++	b.y = 6;
++	var ans int;
++	if fun(b){
++		ans = 1;
++	} else{
++		ans = 2;
++	}
++	ans = ans+4;
+ }
+\ No newline at end of file
+diff --git a/tests/test1.go_fib.csv b/tests/test1.go_fib.csv
+new file mode 100644
+index 0000000..68f6a0f
+--- /dev/null
++++ b/tests/test1.go_fib.csv
+@@ -0,0 +1,2 @@
++id, type, 
++n, int, 
+diff --git a/tests/test1.go_fib.dot b/tests/test1.go_fib.dot
+new file mode 100644
+index 0000000..7ba889c
+--- /dev/null
++++ b/tests/test1.go_fib.dot
+@@ -0,0 +1,43 @@
++strict digraph "" {
++	node [label="\N"];
++	140066525745408	[label=FunctionBody];
++	140066526900032	[label=if];
++	140066525745408 -> 140066526900032	[label=0];
++	140066526899024	[label=return];
++	140066525745408 -> 140066526899024	[label=1];
++	140066526899792	[label="||"];
++	140066526900032 -> 140066526899792	[label=1];
++	140066525746704	[label=block];
++	140066526900032 -> 140066525746704	[label=2];
++	140066526898880	[label="=="];
++	140066526899792 -> 140066526898880	[label=0];
++	140066526899168	[label="=="];
++	140066526899792 -> 140066526899168	[label=1];
++	140066526899408	[label=n];
++	140066526898880 -> 140066526899408	[label=0];
++	140066526899312	[label=0];
++	140066526898880 -> 140066526899312	[label=1];
++	140066526899168 -> 140066526899408	[label=0];
++	140066526899120	[label=1];
++	140066526899168 -> 140066526899120	[label=1];
++	140066525745888	[label=return];
++	140066525746704 -> 140066525745888	[label=0];
++	140066526899360	[label=0];
++	140066525745888 -> 140066526899360	[label=0];
++	140066525745840	[label="+"];
++	140066526899024 -> 140066525745840	[label=0];
++	140066526899552	[label=fib];
++	140066525745840 -> 140066526899552	[label=0];
++	140066525746272	[label=fib];
++	140066525745840 -> 140066525746272	[label=1];
++	140066525746608	[label="-"];
++	140066526899552 -> 140066525746608	[label=0];
++	140066525746608 -> 140066526899408	[label=0];
++	140066526899072	[label=1];
++	140066525746608 -> 140066526899072	[label=1];
++	140066525746128	[label="-"];
++	140066525746272 -> 140066525746128	[label=0];
++	140066525746128 -> 140066526899408	[label=0];
++	140066525746800	[label=2];
++	140066525746128 -> 140066525746800	[label=1];
++}
+diff --git a/tests/test1.go_fib.png b/tests/test1.go_fib.png
+new file mode 100644
+index 0000000..babf4cb
+Binary files /dev/null and b/tests/test1.go_fib.png differ
+diff --git a/tests/test1.go_fun.csv b/tests/test1.go_fun.csv
+new file mode 100644
+index 0000000..ef18fbb
+--- /dev/null
++++ b/tests/test1.go_fun.csv
+@@ -0,0 +1,2 @@
++id, type, 
++a, struct{x int; y int; }, 
+diff --git a/tests/test1.go_fun.dot b/tests/test1.go_fun.dot
+new file mode 100644
+index 0000000..140acb0
+--- /dev/null
++++ b/tests/test1.go_fun.dot
+@@ -0,0 +1,40 @@
++strict digraph "" {
++	node [label="\N"];
++	140066526899072	[label=FunctionBody];
++	140066526899840	[label=if];
++	140066526899072 -> 140066526899840	[label=0];
++	140066526900128	[label=">"];
++	140066526899840 -> 140066526900128	[label=1];
++	140066526899456	[label=block];
++	140066526899840 -> 140066526899456	[label=2];
++	140066529017568	[label=else];
++	140066526899840 -> 140066529017568	[label=3];
++	140066529015504	[label="*"];
++	140066526900128 -> 140066529015504	[label=0];
++	140066529015552	[label=DOT];
++	140066526900128 -> 140066529015552	[label=1];
++	140066529015264	[label=DOT];
++	140066529015504 -> 140066529015264	[label=0];
++	140066529017712	[label=DOT];
++	140066529015504 -> 140066529017712	[label=1];
++	140066529015312	[label=a];
++	140066529015264 -> 140066529015312	[label=0];
++	140066526900176	[label=x];
++	140066529015264 -> 140066526900176	[label=1];
++	140066529017712 -> 140066529015312	[label=0];
++	140066526899792	[label=x];
++	140066529017712 -> 140066526899792	[label=1];
++	140066529015552 -> 140066529015312	[label=0];
++	140066526900032	[label=y];
++	140066529015552 -> 140066526900032	[label=1];
++	140066526898976	[label=return];
++	140066526899456 -> 140066526898976	[label=0];
++	140066526899504	[label=true];
++	140066526898976 -> 140066526899504	[label=0];
++	140066526898880	[label=block];
++	140066529017568 -> 140066526898880	[label=0];
++	140066526899408	[label=return];
++	140066526898880 -> 140066526899408	[label=0];
++	140066526899360	[label=false];
++	140066526899408 -> 140066526899360	[label=0];
++}
+diff --git a/tests/test1.go_fun.png b/tests/test1.go_fun.png
+new file mode 100644
+index 0000000..7051ca2
+Binary files /dev/null and b/tests/test1.go_fun.png differ
+diff --git a/tests/test1.go_main.csv b/tests/test1.go_main.csv
+new file mode 100644
+index 0000000..9245ca9
+--- /dev/null
++++ b/tests/test1.go_main.csv
+@@ -0,0 +1,3 @@
++id, type, 
++b, struct{x int; y int; }, 
++ans, int, 
+diff --git a/tests/test1.go_main.dot b/tests/test1.go_main.dot
+new file mode 100644
+index 0000000..75599f9
+--- /dev/null
++++ b/tests/test1.go_main.dot
+@@ -0,0 +1,53 @@
++strict digraph "" {
++	node [label="\N"];
++	140066525746272	[label=FunctionBody];
++	140066529015552	[label="="];
++	140066525746272 -> 140066529015552	[label=1];
++	140066525746416	[label="="];
++	140066525746272 -> 140066525746416	[label=2];
++	140066525745552	[label=if];
++	140066525746272 -> 140066525745552	[label=4];
++	140066525746320	[label="="];
++	140066525746272 -> 140066525746320	[label=5];
++	140066526899360	[label=DOT];
++	140066529015552 -> 140066526899360	[label=0];
++	140066525745360	[label=4];
++	140066529015552 -> 140066525745360	[label=1];
++	140066525746512	[label=b];
++	140066526899360 -> 140066525746512	[label=0];
++	140066525745456	[label=x];
++	140066526899360 -> 140066525745456	[label=1];
++	140066526899168	[label=DOT];
++	140066525746416 -> 140066526899168	[label=0];
++	140066525745408	[label=6];
++	140066525746416 -> 140066525745408	[label=1];
++	140066526899168 -> 140066525746512	[label=0];
++	140066525745504	[label=y];
++	140066526899168 -> 140066525745504	[label=1];
++	140066526899120	[label=fun];
++	140066525745552 -> 140066526899120	[label=1];
++	140066525746080	[label=block];
++	140066525745552 -> 140066525746080	[label=2];
++	140066526899312	[label=else];
++	140066525745552 -> 140066526899312	[label=3];
++	140066526899120 -> 140066525746512	[label=0];
++	140066525745840	[label="="];
++	140066525746080 -> 140066525745840	[label=0];
++	140066525746560	[label=ans];
++	140066525745840 -> 140066525746560	[label=0];
++	140066525746992	[label=1];
++	140066525745840 -> 140066525746992	[label=1];
++	140066525747424	[label=block];
++	140066526899312 -> 140066525747424	[label=0];
++	140066525747856	[label="="];
++	140066525747424 -> 140066525747856	[label=0];
++	140066525747856 -> 140066525746560	[label=0];
++	140066525746896	[label=2];
++	140066525747856 -> 140066525746896	[label=1];
++	140066525746320 -> 140066525746560	[label=0];
++	140066525746704	[label="+"];
++	140066525746320 -> 140066525746704	[label=1];
++	140066525746704 -> 140066525746560	[label=0];
++	140066525746800	[label=4];
++	140066525746704 -> 140066525746800	[label=1];
++}
+diff --git a/tests/test1.go_main.png b/tests/test1.go_main.png
+new file mode 100644
+index 0000000..426ac48
+Binary files /dev/null and b/tests/test1.go_main.png differ
+diff --git a/tests/test1.go_zeroptr.csv b/tests/test1.go_zeroptr.csv
+new file mode 100644
+index 0000000..5bf1807
+--- /dev/null
++++ b/tests/test1.go_zeroptr.csv
+@@ -0,0 +1,2 @@
++id, type, 
++iptr, *int, 
+diff --git a/tests/test1.go_zeroptr.dot b/tests/test1.go_zeroptr.dot
+new file mode 100644
+index 0000000..d0536cf
+--- /dev/null
++++ b/tests/test1.go_zeroptr.dot
+@@ -0,0 +1,12 @@
++strict digraph "" {
++	node [label="\N"];
++	140066526899648	[label=FunctionBody];
++	140066526899456	[label="="];
++	140066526899648 -> 140066526899456	[label=0];
++	140066526899312	[label="*"];
++	140066526899456 -> 140066526899312	[label=0];
++	140066529017472	[label=0];
++	140066526899456 -> 140066529017472	[label=1];
++	140066526899840	[label=iptr];
++	140066526899312 -> 140066526899840	[label=0];
++}
+diff --git a/tests/test1.go_zeroptr.png b/tests/test1.go_zeroptr.png
+new file mode 100644
+index 0000000..04c3cf3
+Binary files /dev/null and b/tests/test1.go_zeroptr.png differ
+diff --git a/tests/test1.go_zeroval.csv b/tests/test1.go_zeroval.csv
+new file mode 100644
+index 0000000..2e4e8e7
+--- /dev/null
++++ b/tests/test1.go_zeroval.csv
+@@ -0,0 +1,2 @@
++id, type, 
++ival, int, 
+diff --git a/tests/test1.go_zeroval.dot b/tests/test1.go_zeroval.dot
+new file mode 100644
+index 0000000..4a6639c
+--- /dev/null
++++ b/tests/test1.go_zeroval.dot
+@@ -0,0 +1,10 @@
++strict digraph "" {
++	node [label="\N"];
++	140066529015648	[label=FunctionBody];
++	140066529017568	[label="="];
++	140066529015648 -> 140066529017568	[label=0];
++	140066529017232	[label=ival];
++	140066529017568 -> 140066529017232	[label=0];
++	140066526899936	[label=0];
++	140066529017568 -> 140066526899936	[label=1];
++}
+diff --git a/tests/test1.go_zeroval.png b/tests/test1.go_zeroval.png
+new file mode 100644
+index 0000000..2a5ac33
+Binary files /dev/null and b/tests/test1.go_zeroval.png differ
+diff --git a/tests/test2.go b/tests/test2.go
+deleted file mode 100644
+index 8c31482..0000000
+--- a/tests/test2.go
++++ /dev/null
+@@ -1,40 +0,0 @@
+-package main
+-
+-import "fmt";
+-
+-func zeroval(ival int) {
+-    ival = 0;
+-}
+-
+-func zeroptr(iptr *int) {
+-    *iptr = 0;
+-}
+-
+-func fib(n int) int {
+-    if n == 0 || n == 1 {
+-        return 0;
+-    }
+-    return fib(n-1) + fib(n-2);
+-}
+-
+-func main() {
+-    i := 1;
+-    var x float = 1.0;
+-    y := 2.0;
+-    if true || false {
+-        zeroval(*&i);
+-        zeroptr(&i);
+-    }
+-
+-    var arr [3]int;
+-    arr[0] = 1;
+-
+-    x = 1.0;
+-    var z struct{x int; y struct{x, y int;};};
+-    z.y.x = 1;
+-    
+-    j := (x + 1.0) == x;
+-    k := &j;
+-    i = +3;
+-    i = 4;
+-}
+\ No newline at end of file
+diff --git a/tests/test3.go b/tests/test3.go
+deleted file mode 100644
+index 7918ff7..0000000
+--- a/tests/test3.go
++++ /dev/null
+@@ -1,34 +0,0 @@
+-for n <= 5 {
+-
+-    var i int;
+-    for i <= 3 {
+-        //fmt.Println(i)
+-        i = i + 1;
+-    }
+-    var a [5]int = [5]int{1, 2, 3, 4, 5};
+-    fmt.Println("emp:", a);
+-
+-    a[4] = 100;
+-    fmt.Println("set:", a);
+-    fmt.Println("get:", a[4]);
+-
+-    fmt.Println("len:", len(a));
+-    function(a, b, c);
+-
+-    j:=1;
+-    // for j := 7; j <= 9; j++ {
+-    //     j += 1;
+-    //     //fmt.Println(j)
+-    // }
+-
+-    
+-    // for {
+-    //     //fmt.Println("loop")
+-    //     break;
+-    // }
+-    // for n := 0; n <= 5; n++ {
+-    //     if n%2 == 0 {
+-    //         continue;
+-    //     }
+-    // }
+-}
+\ No newline at end of file
+diff --git a/tests/test4.go b/tests/test4.go
+deleted file mode 100644
+index ebe6d77..0000000
+--- a/tests/test4.go
++++ /dev/null
+@@ -1,42 +0,0 @@
+-package main
+-
+-import "fmt";
+-
+-func main() {
+-
+-    var a [5]int = [5]int{1, 2, 3, 4, 5};
+-    fmt.Println("emp:", a);
+-
+-    a[4] = 100;
+-    fmt.Println("set:", a);
+-    fmt.Println("get:", a[4]);
+-
+-    fmt.Println("len:", len(a));
+-    function(a, b, c);
+-    {
+-        {
+-            {
+-                LOOP : 
+-                i = 1;
+-                i, j := 1, 2;
+-                var twoD [2][3]int;
+-                if i := 0; i<0 {
+-                    for j := 0; j < 3; j++ {
+-                        twoD[i][j] = i + j;
+-                    }
+-                }
+-                fmt.Println("2d: ", twoD);
+-                a++;
+-            }
+-        }
+-    }
+-    i = 1;
+-    i, j := 1, 2;
+-    var twoD [2][3]int;
+-    for i := 0; i < 2; i++ {
+-        for j := 0; j < 3; j++ {
+-            twoD[i][j] = i + j;
+-        }
+-    }
+-    fmt.Println("2d: ", twoD);
+-}
+\ No newline at end of file
+diff --git a/tests/test5.go b/tests/test5.go
+deleted file mode 100644
+index d2ffad0..0000000
+--- a/tests/test5.go
++++ /dev/null
+@@ -1,22 +0,0 @@
+-package main
+-
+-import "fmt";
+-
+-func main() {
+-   /* local variable definition */
+-   var a int = 10;
+-
+-   if a == 15 {
+-      /* skip the iteration */
+-      a = a + 1;
+-      goto LOOP;
+-   }
+-   
+-   fmt.Printf("value of a: %d\n", a);
+-   a++;
+-
+-   /* do loop execution */
+-   for a < 20 {
+-           
+-   }
+-}

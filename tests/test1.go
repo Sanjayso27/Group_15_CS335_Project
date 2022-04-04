@@ -29,10 +29,17 @@ func main(){
 	b.x = 4;
 	b.y = 6;
 	var ans int;
-	if fun(b){
-		ans = 1;
-	} else{
-		ans = 2;
+	for i := 0 ; ; {
+		if fun(b){
+			ans = 1;
+			if fun(b){
+				ans = 1;
+			} else{
+				ans = 2;
+			}
+		} else{
+			ans = 2;
+		}
 	}
 	ans = ans+4;
 }

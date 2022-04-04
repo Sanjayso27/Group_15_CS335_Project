@@ -1040,3 +1040,5 @@ if __name__ == "__main__" :
     parser = ParserGo(data, sys.argv[1])
     parser.build()
     result = parser.parser.parse(data, lexer=parser.lexer.lexer, tracking=True)
+    for scope in parser.scopeList:
+        print(scope.symbolTable)
