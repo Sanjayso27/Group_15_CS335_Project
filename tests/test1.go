@@ -29,17 +29,5 @@ func main(){
 	b.x = 4;
 	b.y = 6;
 	var ans int;
-	for i := 0 ; ; {
-		if fun(b){
-			ans = 1;
-			if fun(b){
-				ans = 1;
-			} else{
-				ans = 2;
-			}
-		} else{
-			ans = 2;
-		}
-	}
-	ans = ans+4;
+	ans = 4 * -2 + 3 * -1;
 }
