@@ -172,13 +172,20 @@ class ParserGo:
         '''
         p[0] = Node(name='block', kind='Stmt')
         p[0].childList = p[3]
+        # print(p[3])
+        for x in p[3]:
+            # print(x)
+            p[0].code +=x.code
     
     def p_pushBlock(self, p):
         '''
         pushBlock   : 
         '''
         if self.curFunc != '':
+            if(self.funcList[self.curFunc] == {}):
+                self.funcList[self.curFunc]["scopeList"] = []
             self.funcList[self.curFunc]['scopeList'].append(self.scopePtr)
+            # if(not ("scopeList" in self.funcList[self.curFunc].keys)):
         self.pushScope()
 
     def p_popBlock(self, p):
@@ -197,6 +204,7 @@ class ParserGo:
         if(len(p)==3):
             p[1].append(p[2])
             p[0] = p[1]
+        # print(p[0])
 
 
     def p_Declaration(self, p):
@@ -339,7 +347,7 @@ class ParserGo:
             for idx_ in range(len(p[4])):
                 code+=(p[4][idx_].code)
             for idx_ in range(len(p[1])):
-                code.append(["=",p[1][idx_],p[4][idx_].var])
+                code.append(["=",p[1][idx_],p[4][idx_].name])
             p[0] = {'idList' : p[1], 'expList' : p[4],  'type' : p[2], 'initialized' : True,"code":code}
     
     def p_ShortVarDecl(self, p):
@@ -364,9 +372,11 @@ class ParserGo:
                     p[0].childList.append(eq)
                     for idx_ in range(len(p[3])):
                         p[0].code+=(p[3][idx_].code)
+                    # print(p[1])
                     for idx_ in range(len(p[1])):
                         p[0].code.append(["=",p[1][idx_],p[3][idx_].var])
-
+        
+        # print(p[0].code)
         # print(p[0].childList)            
 
     def dfs(self, node, G):
@@ -394,6 +404,9 @@ class ParserGo:
         self.dfs(p[4], G)
         G.draw(f"{self.filePath}_{self.curFunc}.png", prog='dot')
         G.write(f"{self.filePath}_{self.curFunc}.dot")
+        # print(p[2])
+        if(p[2]=="main"):
+            getCodeString(p[4].code)
 
         self.curFunc = ''
         
@@ -411,7 +424,7 @@ class ParserGo:
         else :
             self.funcList[p[1]] = {}
             self.curFunc = p[1]
-
+        p[0]=p[1]
         # print("function added")
     
     def p_Signature(self, p):
@@ -432,22 +445,7 @@ class ParserGo:
             returnType = 'void'
         else :
             returnType = p[2]
-        l1 = f"t{self.labelCount}"
-        self.labelCount +=1
-        l2 = f"t{self.labelCount}"
-        self.labelCount +=1
-        l3 = f"t{self.labelCount}"
-        self.labelCount +=1
-        l4 = f"t{self.labelCount}"
-        self.labelCount +=1
-        self.scopeStack[-1].symbolTable['start'] = l1
-        self.scopeStack[-1].symbolTable['end'] = l2
-        self.scopeStack[-1].symbolTable['update'] = l3
-        self.scopeStack[-1].symbolTable['condition'] = l4
-        self.funcList[self.curFunc]['input'] = p[1]['typeList']
-        self.funcList[self.curFunc]['output'] = returnType
-        self.funcList[self.curFunc]['scopeList'] = [self.scopePtr - 1]
-    
+        
     def p_Parameters(self, p):
         '''
         Parameters 	: LROUND ParameterList RROUND
@@ -464,8 +462,8 @@ class ParserGo:
                         | ParameterDecl
         '''
         if len(p) == 4 :
-            p[1][0] += p[2][0]
-            p[1][1] += p[2][1]
+            p[1][0] += p[3][0]
+            p[1][1] += p[3][1]
         p[0] = p[1]
     
     def p_ParameterDecl(self, p):
@@ -536,51 +534,57 @@ class ParserGo:
         IntLit  : INT_LIT
         '''
         p[0] = Node(name=p[1], kind = 'EXP', type = 'int', value = int(p[1]))
-        newVar = f"t{self.varCount}"
-        self.varCount +=1
-        p[0].code.append(['=', newVar, p[1]])
+        p[0].var = p[1]
+        # newVar = f"t{self.varCount}"
+        # self.varCount +=1
+        # p[0].code.append(['=', newVar, p[1]])
 
     def p_FloatLit(self, p):
         '''
         FloatLit    : FLOAT_LIT
         '''
         p[0] = Node(name=p[1], kind = 'EXP', type = 'float', value = float(p[1]))
-        newVar = f"t{self.varCount}"
-        self.varCount +=1
-        p[0].code.append(['=', newVar, p[1]])
+        p[0].var = p[1]
+        # newVar = f"t{self.varCount}"
+        # self.varCount +=1
+        # p[0].code.append(['=', newVar, p[1]])
 
     def p_StrLit(self, p):
         '''
         StrLit  : STRING_LIT
         '''
         p[0] = Node(name=p[1], kind = 'EXP', type = 'string', value = p[1])
-        newVar = f"t{self.varCount}"
-        self.varCount +=1
-        p[0].code.append(['=', newVar, p[1]])
+        p[0].var = p[1]
+        # newVar = f"t{self.varCount}"
+        # self.varCount +=1
+        # p[0].code.append(['=', newVar, p[1]])
     
     def p_CharLit(self, p):
         '''
         CharLit : CHAR_LIT
         '''
         p[0] = Node(name=p[1], kind = 'EXP', type = 'char', value = ord(p[1]))
+        p[0].var = p[1]
     
     def p_BoolLit(self, p):
         '''
         BoolLit : BOOL_LIT
         '''
         p[0] = Node(name=p[1], kind = 'EXP', type = 'bool')
-        newVar = f"t{self.varCount}"
-        self.varCount +=1
-        p[0].code.append(['=', newVar, p[1]])
+        p[0].var = p[1]
+        # newVar = f"t{self.varCount}"
+        # self.varCount +=1
+        # p[0].code.append(['=', newVar, p[1]])
 
     def p_NilLit(self, p):
         '''
         NilLit  : NIL
         '''
         p[0] = Node(name = p[1], kind = 'EXP', type = 'PTR', value = 0)
-        newVar = f"t{self.varCount}"
-        self.varCount +=1
-        p[0].code.append(['=', newVar, p[1]])
+        p[0].var = p[1]
+        # newVar = f"t{self.varCount}"
+        # self.varCount +=1
+        # p[0].code.append(['=', newVar, p[1]])
     
     def p_OperandName(self, p):
         '''
@@ -866,6 +870,7 @@ class ParserGo:
                     | SimpleStmt SEMICOLON
                     | SEMICOLON
         '''
+        # print("statement",p[1])
         p[0] = p[1]
     
     def p_SimpleStmt(self, p):
@@ -1095,11 +1100,21 @@ class ParserGo:
                             | TopLevelDecl
         '''
 
+def getCodeString(code):
+    print("======3AC begins======")
+    print("1, goto, label0")
+    count = 2
+    for x in code :
+        print(f"{count}, {x[0]}, {x[1]}, {x[2]}")
+        count = count + 1
+    print("======3AC ends======")
+    pass
+
 if __name__ == "__main__" :
     file = open(sys.argv[1], 'r')
     data = file.read()
     parser = ParserGo(data, sys.argv[1])
     parser.build()
     result = parser.parser.parse(data, lexer=parser.lexer.lexer, tracking=True)
-    for scope in parser.scopeList:
-        print(scope.symbolTable)
+    # for scope in parser.scopeList:
+    #     print(scope.symbolTable)
