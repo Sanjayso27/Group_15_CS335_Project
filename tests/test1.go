@@ -14,23 +14,16 @@ func (r rect) perim() int {
     return 2*r.width + 2*r.height;
 }
 
-func main() {
+const a, a = 1, 2;
+
+func main(a, b int) {
     //r := rect{10, 5};
-    b := r.width + r.perim();
-    i := 2;
-    var i, j int = i, 3;
-    if i>0 {
-        i++;
-    }
-    k := make([]rect, 3);
-    i, j := i+j, 3+2;
-    for i,j := 2,1; i > 0; i-- {
-        i--;
-        j--;
-        fmt.Println(b);
-    }
-    fmt.Println("area: ", r.area());
-    fmt.Println("perim:", r.perim());
+    var a, b int = 2, 3;
+    b++;
+    ++a;
+    
+    fmt.Println("area: ", r.area(), b);
+    fmt.Println("perim:", r.perim(), a);
 
     rp := &r;
     fmt.Println("area: ", rp.area());

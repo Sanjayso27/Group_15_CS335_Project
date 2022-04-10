@@ -1,3 +1,4 @@
+# TODO : modify to put ; after each }, ), ++, --, ID, DATA_TYPE, Literals, BREAK, CONTINUE, RETURN when followed by newline 
 import ply.lex as lex
 import sys
 from ply.lex import TOKEN
@@ -159,12 +160,11 @@ class LexerGo:
         self.tokenList = {}
 
     def t_DATA_TYPE(self, t):
-        r"((uint8)|(uint16)|(uint32)|(uint64)|(int8)|(int16)|(int32)|(int64)|(float32)|(float64)|(byte)|(rune)|(bool)|(int)|(uint)|(string))"
+        r"((uint8)|(uint16)|(uint32)|(uint64)|(int8)|(int16)|(int32)|(int64)|(float32)|(float64)|(byte)|(rune)|(bool)|(int)|(uint)|(string)|(float))"
         return t
 
     def t_BOOL_LIT(self, t):
         r"((true)|(false))"
-        t.value = 1 if t.value == "true" else "false"
         return t
 
     @TOKEN(float_lit)
