@@ -1,19 +1,23 @@
 package main
 
-import "fmt";
 
-type rect struct {
-    width, height int;
-};
-
-func (r *rect) area() int {
-    return r.width * r.height;
+func fun(a struct{x,y int;}) bool{
+	if a.x*a.x > a.y{
+		return true;
+	} else {
+		return false;
+	}
 }
 
-func (r rect) perim() int {
-    return 2*r.width + 2*r.height;
+func zeroval(ival int) {
+    ival = 0;
 }
 
+func zeroptr(iptr *int) {
+    *iptr = 0;
+}
+
+<<<<<<< HEAD
 const a, a = 1, 2;
 
 func main(a, b int) {
@@ -24,8 +28,19 @@ func main(a, b int) {
     
     fmt.Println("area: ", r.area(), b);
     fmt.Println("perim:", r.perim(), a);
+=======
+func fib(n int) int {
+    if n == 0 || n == 1 {
+        return 0;
+    }
+    return fib(n-1) + fib(n-2);
+}
+>>>>>>> 45c959273b7474dd55006697bb299bce511649f4
 
-    rp := &r;
-    fmt.Println("area: ", rp.area());
-    fmt.Println("perim:", rp.perim());
+func main(){
+	var b struct{x,y int;};
+	b.x = 4;
+	b.y = 6;
+	var ans int;
+	ans = 4 * -2 + 3 * -1;
 }
