@@ -14,7 +14,6 @@ def print_warn(msg, lineno, colno):
     console.print(f" L:{lineno} C:{colno}", style="bold", end = "")
     console.print(" : ", msg)
     
-
 def print_table(headers, data):
     table = Table()
     for col in headers:
@@ -52,6 +51,5 @@ def typestring(typelist):
                 s += f"{id} {typestring(typelist[1][id])}; "
             s += '}'
             return s
-
 
 

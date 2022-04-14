@@ -1,4 +1,3 @@
-
 from collections import OrderedDict
 
 class Scope:
@@ -7,6 +6,7 @@ class Scope:
         self.symbolTable = OrderedDict()
         self.parent = parent
         self.isGlobal = isGlobal
+        self.metadata = {}
 
     def lookUp(self, id):
         if id in self.symbolTable.keys() :
@@ -25,13 +25,17 @@ class Scope:
         self.typeDefs[name] = type
 
 class Node:
-    def __init__(self, name, kind, type=None, value = 0):
+    def __init__(self, name, kind, type=None, var=None,value = 0):
         self.name = name    # name of Node
         self.type = type    # type of Node
         self.childList = [] # childrens of Node
         self.kind = kind    # Kind of Node
         self.value = value
         self.visited = False
-
+        self.code = []
+        self.var = var
+        self.placeList = []
+        self.sizeList = []
+        
     def __str__(self):
         return f"name : {self.name} \nkind : {self.kind} \ntype{self.type}\n"

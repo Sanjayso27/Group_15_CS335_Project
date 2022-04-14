@@ -162,7 +162,7 @@ class LexerGo:
         self.phantomSemicolons = []
 
     def t_DATA_TYPE(self, t):
-        r"((uint8)|(uint16)|(uint32)|(uint64)|(int8)|(int16)|(int32)|(int64)|(float32)|(float64)|(byte)|(rune)|(bool)|(int)|(uint)|(string))"
+        r"((uint8)|(uint16)|(uint32)|(uint64)|(int8)|(int16)|(int32)|(int64)|(float32)|(float64)|(byte)|(rune)|(bool)|(int)|(uint)|(string)|(float))"
         return t
 
     def t_BOOL_LIT(self, t):
