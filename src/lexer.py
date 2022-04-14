@@ -1,4 +1,4 @@
-# TODO : modify to put ; after each }, ), ++, --, ID, DATA_TYPE, Literals, BREAK, CONTINUE, RETURN when followed by newline 
+# TODO : modify to put ; after each }, ), ++, --, ID, DATA_TYPE, Literals, BREAK, CONTINUE, RETURN when followed by newline
 import ply.lex as lex
 import sys
 from ply.lex import TOKEN
@@ -9,8 +9,8 @@ escaped_char = {
     "b": "\b",
     "t": "\t",
     "\\": "\\",
-    '\"': '\"',
-    '\'': '\'',
+    '"': '"',
+    "'": "'",
     "0": "\0",
 }
 
@@ -20,14 +20,14 @@ reserved = {
     "continue": "CONTINUE",
     "return": "RETURN",
     "nil": "NIL",
-    #"default": "DEFAULT",
+    # "default": "DEFAULT",
     "func": "FUNC",
-    #"case": "CASE",
+    # "case": "CASE",
     "goto": "GOTO",
     "struct": "STRUCT",
     "else": "ELSE",
     "package": "PACKAGE",
-    #"switch": "SWITCH",
+    # "switch": "SWITCH",
     "const": "CONST",
     "if": "IF",
     "type": "TYPE",
@@ -68,14 +68,14 @@ tokens = list(reserved.values()) + [
     "DOT",
     "SEMICOLON",
     "COLON",
-    #"SINGLE_QUOTES",
-    #"DOUBLE_QUOTES",
+    # "SINGLE_QUOTES",
+    # "DOUBLE_QUOTES",
     "INT_LIT",
     "FLOAT_LIT",
     "STRING_LIT",
     "BOOL_LIT",
     "CHAR_LIT",
-    #"BR",
+    "BR",
     "ID",
     "DATA_TYPE",
     "PLUS",
@@ -86,7 +86,7 @@ tokens = list(reserved.values()) + [
     "AMP",
     "OR",
     "CARET",
-    #"AND_NOT",
+    # "AND_NOT",
     "LSHIFT",
     "RSHIFT",
     "ASSIGN",
@@ -135,8 +135,8 @@ class LexerGo:
     t_DOT = r"(\.)"
     t_SEMICOLON = r"(\;)"
     t_COLON = r"(\:)"
-    #t_DOUBLE_QUOTES = r"(\")"
-    #t_SINGLE_QUOTES = r"(\')"
+    # t_DOUBLE_QUOTES = r"(\")"
+    # t_SINGLE_QUOTES = r"(\')"
     t_PLUS = r"(\+)"
     t_MINUS = r"(-)"
     t_STAR = r"(\*)"
@@ -148,7 +148,7 @@ class LexerGo:
     t_AMP = r"(\&)"
     t_OR = r"\|"
     t_CARET = r"\^"
-    #t_AND_NOT = r"&^"
+    # t_AND_NOT = r"&^"
     t_ignore = " \t"
 
     def __init__(self):
@@ -158,6 +158,8 @@ class LexerGo:
         self.isTerminalError = False
         self.tokens = tokens
         self.tokenList = {}
+        self.firstPass = False
+        self.phantomSemicolons = []
 
     def t_DATA_TYPE(self, t):
         r"((uint8)|(uint16)|(uint32)|(uint64)|(int8)|(int16)|(int32)|(int64)|(float32)|(float64)|(byte)|(rune)|(bool)|(int)|(uint)|(string))"
@@ -230,9 +232,11 @@ class LexerGo:
         r"\n"
         self.line_no += 1
         self.last_newline = t.lexpos
-        t.value = 'BR'
+        t.value = "BR"
+        if self.firstPass:
+            return t
         return
-        
+
     def t_IDENTIFIER(self, t):
         r"[a-zA-Z_][a-zA-Z_0-9]*"
         t.type = reserved.get(t.value, "ID")
@@ -248,8 +252,29 @@ class LexerGo:
     def build(self):
         self.lexer = lex.lex(object=self)
 
-    def input(self, data, show_lexer_output=False):
+    def LookUpAndPreprocess(self, data, show_lexer_output=False, insertSemicolons = False):
+        if data[-1] != "\n":
+            data += "\n"
         self.lexer.input(data)
+        self.firstPass = insertSemicolons
+        prevToken = ""
+        specialToken = [
+            "ID",
+            "DATA_TYPE",
+            "RSQUARE",
+            "RROUND",
+            "RCURLY",
+            "PLUS_PLUS",
+            "MINUS_MINUS",
+            "BREAK",
+            "CONTINUE",
+            "RETURN",
+            "INT_LIT",
+            "FLOAT_LIT",
+            "STRING_LIT",
+            "BOOL_LIT",
+            "CHAR_LIT",
+        ]
 
         while True:
             tok = self.lexer.token()
@@ -261,16 +286,30 @@ class LexerGo:
                 self.line_no,
                 tok.lexpos - self.last_newline,
             ]
+            if prevToken in specialToken and tok.type == "BR":
+                self.phantomSemicolons.append(tok.lexpos)
+            prevToken = tok.type
 
         if show_lexer_output:
             print_table(
                 ["Token", "Value", "Line", "Column"], list(self.tokenList.values())
             )
+            print(self.phantomSemicolons)
 
+        if insertSemicolons :
+            data = list(data)
+            for i in self.phantomSemicolons:
+                data[i] = ";"
+            data = "".join(data)
+        
+        self.firstPass = False
+        
+        return data
 
 if __name__ == "__main__":
     file = open(sys.argv[1], "r")
     data = file.read()
     lexer = LexerGo()
     lexer.build()
-    lexer.input(data, show_lexer_output=True)
+    data = lexer.LookUpAndPreprocess(data, show_lexer_output=True, insertSemicolons=True)
+    print(data)

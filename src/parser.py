@@ -15,7 +15,8 @@ class ParserGo:
         self.filePath = filePath
         self.lexer = LexerGo()
         self.lexer.build()
-        self.lexer.input(data)
+        self.data = self.lexer.LookUpAndPreprocess(data, insertSemicolons = True)
+        print(self.data)
         self.tokens = tokens
         self.precedence = (
             ('left', 'OR_OR'),
@@ -49,7 +50,10 @@ class ParserGo:
 
     def p_error(self, p) :
         if p is not  None :
-            msg = f"Found unexpexted token {p.value}"
+            token = p.value
+            if p.lexpos in self.lexer.phantomSemicolons :
+                token = 'newline'
+            msg = f"Found unexpexted token {token}"
             print_error(msg, self.lexer.tokenList[p.lexpos][2], self.lexer.tokenList[p.lexpos][3])
 
     def p_lcurly(self, p):
@@ -183,9 +187,13 @@ class ParserGo:
                         | Statement
         '''
         if(len(p)==2):
-            p[0] = [p[1]]
-        if(len(p)==3):
-            p[1].append(p[2])
+            if p[1] is not None :
+                p[0] = [p[1]]
+            else :
+                p[0] = []
+        elif(len(p)==3) :
+            if p[2] is not None :
+                p[1].append(p[2])
             p[0] = p[1]
 
 
@@ -345,7 +353,7 @@ class ParserGo:
     
     def p_FunctionDecl(self, p):
         '''
-        FunctionDecl 	: FUNC FunctionName Signature FunctionBody popBlock
+        FunctionDecl 	: FUNC FunctionName Signature FunctionBody SEMICOLON popBlock
         '''
         table = []
         for scopeid in self.funcList[self.curFunc]['scopeList'] :
@@ -441,8 +449,7 @@ class ParserGo:
     
     def p_MethodDecl(self, p):
         '''
-        MethodDecl	: FUNC Receiver MethodName Signature
-                    | FUNC Receiver MethodName Signature FunctionBody
+        MethodDecl	: FUNC Receiver MethodName Signature FunctionBody
         '''
 
     def p_MethodName(self, p):
@@ -799,12 +806,14 @@ class ParserGo:
                     | BreakStmt 
                     | ContinueStmt 
                     | GotoStmt
-                    | Block 
-                    | IfStmt 
+                    | Block
+                    | IfStmt
                     | ForStmt
                     | SimpleStmt SEMICOLON
                     | SEMICOLON
         '''
+        if p[1] == ';' :
+            p[1] = None
         p[0] = p[1]
     
     def p_SimpleStmt(self, p):
@@ -857,16 +866,17 @@ class ParserGo:
     def p_Assignment(self, p):
         '''
         Assignment	: Expression assign_op Expression
+                    | ExpressionList assign_op ExpressionList
         '''
         op = Node(name = p[2], kind = 'Assignment')
         op.childList.append(p[1])
         op.childList.append(p[3])
         p[0] = op
-        if p[1].type is None or p[3].type is None :
-            p[0].type = None
-        if p[1].type != p[3].type :
-            msg = "Found type type mismatch"
-            print_error(msg, *(self.pos(p.lexpos(2))))
+        # if p[1].type is None or p[3].type is None :
+        #     p[0].type = None
+        # if p[1].type != p[3].type :
+        #     msg = "Found type type mismatch"
+        #     print_error(msg, *(self.pos(p.lexpos(2))))
         # reducing power of rule ExpresssionList assign_op ExpressionList
     
     def p_assign_op(self, p):
@@ -1009,7 +1019,7 @@ class ParserGo:
     
     def p_PackageClause(self, p):
         '''
-        PackageClause   : PACKAGE ID
+        PackageClause   : PACKAGE ID SEMICOLON
         '''
 
     def p_ImportDeclList(self, p):
@@ -1039,6 +1049,6 @@ if __name__ == "__main__" :
     data = file.read()
     parser = ParserGo(data, sys.argv[1])
     parser.build()
-    result = parser.parser.parse(data, lexer=parser.lexer.lexer, tracking=True)
+    result = parser.parser.parse(parser.data, lexer=parser.lexer.lexer, tracking=True)
     for scope in parser.scopeList:
         print(scope.symbolTable)
