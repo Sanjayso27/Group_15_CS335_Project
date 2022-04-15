@@ -37,5 +37,5 @@ func main(){
 	var ans int;
 	ans = 4 * -b.x + 3 * -b.y;
 	ans = 1;
-	fmt.Println(ans)
+//	fmt.Println(ans)
 };

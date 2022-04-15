@@ -2,9 +2,11 @@ import sys
 from lexer import LexerGo
 from lexer import tokens
 import ply.yacc as yacc
-from helper import print_error, print_warn, print_csv, typestring
+from helper import print_error, print_warn, print_csv
 from collections import OrderedDict
-from data_structures import Scope, Node
+from scope import Scope
+from node import Node
+from type import typestring
 import pygraphviz as pgv
 # import logging
 # log = logging.getLogger('ply')
