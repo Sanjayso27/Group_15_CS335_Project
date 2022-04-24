@@ -1121,8 +1121,6 @@ class ParserGo:
                     | MAKE LROUND SliceType COMMA Expression RROUND
         '''
 
-        # | Conversion 
-    
     def p_Selector(self, p):
         '''
         Selector	: DOT ID
@@ -1497,28 +1495,24 @@ class ParserGo:
         '''
         ForStmt : FOR CreateScope Condition Block EndScope
                 | FOR CreateScope ForLoop Block EndScope
-                | FOR CreateScope Block EndScope
         '''
         start = self.symbolTables[self.lastScope].metadata['start']
         update = self.symbolTables[self.lastScope].metadata['update']
         end = self.symbolTables[self.lastScope].metadata['end']  
-        condition = self.symbolTables[self.lastScope].metadata['end']  
-       
-        if(len(p)==6):
-            p[0]=p[3]
-            if p[3].name == "Condition":
-                p[0].code.insert(0, [condition])
-                p[0].scopeInfo.insert(0, [''])
-        else :
-            p[0]=Node("ForStmt")
-            p[0].code += [[update]]
-            p[0].scopeInfo.append([''])
-
+        condition = self.symbolTables[self.lastScope].metadata['condition']  
+        
+        p[0]=p[3]
+        if p[3].name == "Condition":
+            p[0].code.insert(0, [condition])
+            p[0].scopeInfo.insert(0, [''])
         p[0].code += [[start]]
         p[0].scopeInfo.append([''])
         p[0].code += p[4].code
         p[0].scopeInfo += p[4].scopeInfo
-        p[0].code += [['goto', update]]
+        if p[3].name == "Condition":
+            p[0].code += [['goto', condition]]
+        else :
+            p[0].code += [['goto', update]]
         p[0].scopeInfo.append(['', ''])
         p[0].code += [[end]]
         p[0].scopeInfo.append([''])

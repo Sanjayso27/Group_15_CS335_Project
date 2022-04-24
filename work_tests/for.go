@@ -8,6 +8,10 @@ func main() {
 	for ;x>0;{
 		x--;
 	};
+	for x<4 {
+		x++;
+		print x;
+	};
 	for x=0;x<4;{
 		x++;
 	};
