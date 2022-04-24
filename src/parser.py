@@ -19,7 +19,8 @@ class ParserGo:
         self.filePath = filePath
         self.lexer = LexerGo()
         self.lexer.build()
-        self.lexer.input(data)
+        self.data = self.lexer.LookUpAndPreprocess(data, insertSemicolons = True)
+        print(self.data)
         self.tokens = tokens
         self.precedence = (
             ('left', 'OR_OR'),
@@ -846,8 +847,7 @@ class ParserGo:
     # MethodDecl TODO:
     def p_MethodDecl(self, p):
         '''
-        MethodDecl	: FUNC Receiver MethodName Signature
-                    | FUNC Receiver MethodName Signature FunctionBody
+        MethodDecl	: FUNC Receiver MethodName Signature FunctionBody
         '''
 
     def p_MethodName(self, p):

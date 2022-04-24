@@ -1,0 +1,4 @@
+id, type, 
+b, struct{x int; y int; }, 
+x, *struct{x int; y int; }, 
+ans, int, 
