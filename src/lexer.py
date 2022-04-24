@@ -35,6 +35,8 @@ reserved = {
     "import": "IMPORT",
     "struct": "STRUCT",
     "make": "MAKE",
+    "print": 'PRINT',
+    "scan" : "SCAN"
 }
 
 tokens = list(reserved.values()) + [
@@ -102,7 +104,7 @@ float_exp = rf"([Ee][+-]?{dec_digits})"
 float_lit = rf"{float_mantissa}{float_exp}?"
 char_lit = r"'.*'"
 
-
+# there was a problem in AMP_AMP
 class LexerGo:
 
     t_PLUS_PLUS = r"(\+\+)"
@@ -110,7 +112,7 @@ class LexerGo:
     t_PLUS_EQ = r"(\+=)"
     t_MINUS_EQ = r"(-=)"
     t_STAR_EQ = r"(\*=)"
-    t_DIVIDE_EQ = r"/="
+    t_DIVIDE_EQ = r"(/=)"
     t_MODULO_EQ = r"(%=)"
     t_AMP_EQ = r"(&=)"
     t_OR_EQ = r"(\|=)"
@@ -121,7 +123,7 @@ class LexerGo:
     t_RSHIFT = r"(>>)"
     t_EQ_EQ = r"(==)"
     t_NOT_EQ = r"(!=)"
-    t_ASSIGN = r"(\:=)"
+    t_ASSIGN = r"(:=)"
     t_NOT = r"(!)"
     t_LE = r"(<=)"
     t_GE = r"(>=)"
@@ -131,23 +133,23 @@ class LexerGo:
     t_RROUND = r"(\))"
     t_LCURLY = r"(\{)"
     t_RCURLY = r"(\})"
-    t_COMMA = r"(\,)"
+    t_COMMA = r"(,)"
     t_DOT = r"(\.)"
-    t_SEMICOLON = r"(\;)"
-    t_COLON = r"(\:)"
+    t_SEMICOLON = r"(;)"
+    t_COLON = r"(:)"
     #t_DOUBLE_QUOTES = r"(\")"
     #t_SINGLE_QUOTES = r"(\')"
     t_PLUS = r"(\+)"
     t_MINUS = r"(-)"
     t_STAR = r"(\*)"
-    t_DIVIDE = r"(\/)"
-    t_MODULO = r"(\%)"
+    t_DIVIDE = r"(/)"
+    t_MODULO = r"(%)"
     t_LT = r"(<)"
     t_GT = r"(>)"
     t_EQ = r"(=)"
-    t_AMP = r"(\&)"
-    t_OR = r"\|"
-    t_CARET = r"\^"
+    t_AMP = r"(&)"
+    t_OR = r"(\|)"
+    t_CARET = r"(\^)"
     #t_AND_NOT = r"&^"
     t_ignore = " \t"
 

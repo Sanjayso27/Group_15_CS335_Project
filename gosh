@@ -1,4 +1,8 @@
 #!/bin/bash
-FILE="./tests/test$1.go"
-python3 src/parser.py $FILE
+FILE="./work_tests/$1.go"
+python3 src/parser.py $FILE $1
 rm ./src/parsetab.py #./src/parser.out
+nasm -f elf32 "assembly.asm" -o "assembly.o"
+gcc -m32 "assembly.o" -o "a.out"
+./a.out
+rm *.o *.out

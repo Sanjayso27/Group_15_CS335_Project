@@ -1,3 +1,0 @@
-id, type, 
-b, struct{x int; y int; }, 
-ans, int, 
