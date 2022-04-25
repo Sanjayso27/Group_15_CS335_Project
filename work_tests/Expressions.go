@@ -3,8 +3,8 @@ package main;
 func main(){
 	var x,y int = 2*2+3-4/5,0;
 	print x;
-	var y bool = (1<2) && (2<3) || (3<4) ;
-	x += 1;
+	var z bool = (1<2) && (2<3) || (3<4) ;
+	x -= 1;
 	x -= 1;
 	x *= 1;
 	x /= 1;

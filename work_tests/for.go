@@ -4,11 +4,12 @@ func main() {
 	for i:=0;i<4;i++ {
 		print i;
 	};
-	var x int =4;
+	var x, y, z int =4, 8;
 	for ;x>0;{
 		x--;
 	};
 	for x<4 {
+		var y int;
 		x++;
 		print x;
 	};

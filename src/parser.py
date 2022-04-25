@@ -1,5 +1,3 @@
-from email import message
-from symtable import symtable
 import sys
 from lexer import LexerGo
 from lexer import tokens
@@ -506,7 +504,11 @@ class ParserGo:
         for id in range(len(p[0].identList)):
             sz = self.type[p[0].typeList[id]]['size']
             # adding in symbol table
-            self.symbolTables[self.getScope()].add(p[0].identList[id],p[0].typeList[id])
+            if not self.symbolTables[self.getScope()].add(p[0].identList[id],p[0].typeList[id]) :
+                self.compileErrors +=1
+                message =  f"Variable {p[0].identList[id]} already declared"
+                print_error(message,*(self.pos(p.lexpos(2))))
+                pass
             # updating the info about is_const ,offset,size in the symbol table entry corr. to id
             self.symbolTables[self.getScope()].update(p[0].identList[id],'is_const',True)
             self.symbolTables[self.getScope()].update(p[0].identList[id],"offset",self.getOffset())
@@ -609,7 +611,11 @@ class ParserGo:
         for id in range(len(p[0].identList)):
             sz = self.type[p[0].typeList[id]]['size']
             # adding in symbol table
-            self.symbolTables[self.getScope()].add(p[0].identList[id],p[0].typeList[id])
+            if not self.symbolTables[self.getScope()].add(p[0].identList[id],p[0].typeList[id]) :
+                self.compileErrors +=1
+                message =  f"Variable {p[0].identList[id]} already declared"
+                print_error(message,*(self.pos(p.lexpos(2))))
+                pass
             # updating the info about is_const ,offset,size in the symbol table entry corr. to id
             self.symbolTables[self.getScope()].update(p[0].identList[id],"offset",self.getOffset())
             self.symbolTables[self.getScope()].update(p[0].identList[id],"size",sz)
@@ -663,7 +669,11 @@ class ParserGo:
             print_error(message,*(self.pos(p.lexpos(2))))
         for id in range(len(p[0].identList)):
             sz = self.type[p[3].typeList[id]]['size']
-            self.symbolTables[self.getScope()].add(p[0].identList[id],p[3].typeList[id])
+            if not self.symbolTables[self.getScope()].add(p[0].identList[id],p[3].typeList[id]) :
+                self.compileErrors +=1
+                message =  f"Variable {p[0].identList[id]} already declared"
+                print_error(message,*(self.pos(p.lexpos(2))))
+                pass
             self.symbolTables[self.getScope()].update(p[0].identList[id],"offset",self.getOffset())
             self.symbolTables[self.getScope()].update(p[0].identList[id],"size",sz)
             self.updateOffset(sz)
@@ -1764,7 +1774,11 @@ class ParserGo:
 from codeGen import CodeGenerator
 
 if __name__ == "__main__" :
-    file = open(sys.argv[1], 'r')
+    try :
+        file = open(sys.argv[1], 'r')
+    except :
+        print(f"File {sys.argv[1]} not found")
+        exit(0)
     data = file.read()
     parser = ParserGo(data, sys.argv[1])
     parser.build()

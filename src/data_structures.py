@@ -21,6 +21,8 @@ class SymbolTable:
     def add(self, id,type_) :
         if (not self.lookUp(id)):
             self.symbolTable[id] = {'type' : type_}
+            return True
+        return False
 
     def get(self,id):
         if(self.lookUp(id)):

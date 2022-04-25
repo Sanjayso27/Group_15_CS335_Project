@@ -1,8 +1,6 @@
 #!/bin/bash
 FILE="./work_tests/$1.go"
-python3 src/parser.py $FILE $1
-rm ./src/parsetab.py #./src/parser.out
+timeout 1 python3 src/parser.py $FILE $1 2>/dev/null
+rm ./src/parsetab.py ./src/parser.out 2>/dev/null
 nasm -f elf32 "assembly.asm" -o "assembly.o"
 gcc -m32 "assembly.o" -o "a.out"
-./a.out
-rm *.o *.out
